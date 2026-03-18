@@ -129,6 +129,44 @@ A two‑phase hook can:
 - On rejection/expiry, provider can recover their tokens from the hook.
 - If the hook misbehaves, the job may not progress before expiry; this is an accepted trade‑off for advanced flows.
 
+### Example: ERC-8001 multi-party coordination
+
+**Use case:** High-value jobs requiring multiple parties (client, provider, evaluator, optional arbiters) to cryptographically agree before the job can be completed or rejected. Uses the ERC-8001 standard for multi-party coordination with EIP-712 attestations.
+
+A coordination hook can:
+
+1. **createJob** — job created with `hook = ERC8001CoordinationHook`.
+2. **submit** — provider submits work, job moves to Submitted state.
+3. **proposeCoordination** — any party proposes coordination for complete or reject:
+   - Creates ERC-8001 coordination intent with participants.
+   - Stores intentHash in hook state.
+   - Emits CoordinationProposed.
+4. **acceptCoordination** — each participant accepts via EIP-712 attestation:
+   - Delegates to ERC-8001 contract for signature verification.
+   - Records acceptance on-chain.
+   - Emits CoordinationAccepted.
+5. **executeCoordination** — once all accept, anyone executes:
+   - Marks coordination as Ready.
+   - Emits CoordinationExecuted.
+6. **complete** or **reject** — evaluator calls action:
+   - `_preComplete` or `_preReject` checks coordination is Ready.
+   - If not Ready, reverts with CoordinationNotReady.
+   - Core contract executes the action.
+7. **cancelCoordination** — if coordination needs cancellation:
+   - Proposer can cancel before expiry.
+   - Anyone can cancel after expiry.
+
+**Properties:**
+
+- Standard-compliant ERC-8001 coordination with EIP-712 attestations.
+- Supports ECDSA (65-byte and 64-byte) and ERC-1271 signatures.
+- Strict participant canonicalization (sorted unique addresses).
+- Monotonic nonce enforcement per agent.
+- Optional per-job (not all jobs require coordination).
+- Gas-efficient: minimal state in hook, complex logic in external ERC-8001 contract.
+- If coordination expires or is cancelled, job can still be completed/rejected through other means.
+- claimRefund remains unhookable as safety mechanism.
+
 ---
 
 ## Profile C — Experimental / Custom Hooks
