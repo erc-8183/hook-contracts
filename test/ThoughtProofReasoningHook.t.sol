@@ -69,7 +69,7 @@ contract ThoughtProofReasoningHookTest is Test {
 
         signer = vm.addr(SIGNER_PK);
         acp = new MockACP();
-        hook = new ThoughtProofReasoningHook(address(acp), signer, owner);
+        hook = new ThoughtProofReasoningHook(address(acp), signer, owner, 0);
 
         // Set up a test job
         acp.setJob(1, agent, provider);

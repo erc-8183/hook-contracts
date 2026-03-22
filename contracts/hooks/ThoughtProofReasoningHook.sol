@@ -54,6 +54,9 @@ contract ThoughtProofReasoningHook is BaseACPHook {
     /// @notice Owner for admin operations
     address public owner;
 
+    /// @notice Minimum required confidence (basis points 0-10000)
+    uint256 public minConfidence;
+
     /// @notice Tracks used attestation nonces to prevent replay
     mapping(bytes32 => bool) public usedNonces;
 
@@ -116,6 +119,7 @@ contract ThoughtProofReasoningHook is BaseACPHook {
 
     error ThoughtProofHook__InvalidSignature();
     error ThoughtProofHook__VerdictNotAllow(bytes32 verdict, uint256 confidence);
+    error ThoughtProofHook__InsufficientConfidence(uint256 confidence, uint256 required);
     error ThoughtProofHook__AttestationExpired(uint256 attestationTime, uint256 currentTime);
     error ThoughtProofHook__NonceReused(bytes32 nonce);
     error ThoughtProofHook__ZeroAddress();
@@ -134,12 +138,14 @@ contract ThoughtProofReasoningHook is BaseACPHook {
     constructor(
         address acpContract_,
         address trustedSigner_,
-        address owner_
+        address owner_,
+        uint256 minConfidence_
     ) BaseACPHook(acpContract_) {
         if (trustedSigner_ == address(0)) revert ThoughtProofHook__ZeroAddress();
         if (owner_ == address(0)) revert ThoughtProofHook__ZeroAddress();
         trustedSigner = trustedSigner_;
         owner = owner_;
+        minConfidence = minConfidence_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -231,11 +237,17 @@ contract ThoughtProofReasoningHook is BaseACPHook {
             agent: _jobClient(jobId)
         });
 
-        // 5. Gate on verdict
+        // 5. Gate on verdict and confidence
         if (verdict != VERDICT_ALLOW) {
             totalBlocked++;
             emit ReasoningBlocked(jobId, _jobClient(jobId), verdict, confidence, claimHash);
             revert ThoughtProofHook__VerdictNotAllow(verdict, confidence);
+        }
+
+        if (confidence < minConfidence) {
+            totalBlocked++;
+            emit ReasoningBlocked(jobId, _jobClient(jobId), verdict, confidence, claimHash);
+            revert ThoughtProofHook__InsufficientConfidence(confidence, minConfidence);
         }
 
         emit ReasoningVerified(jobId, _jobClient(jobId), verdict, confidence, claimHash);
@@ -250,6 +262,13 @@ contract ThoughtProofReasoningHook is BaseACPHook {
      * @dev Called when ThoughtProof rotates their JWKS signing key.
      *      Old attestations remain valid until they expire naturally.
      */
+    /**
+     * @notice Update the required confidence threshold.
+     */
+    function updateMinConfidence(uint256 newConfidence) external onlyOwner {
+        minConfidence = newConfidence;
+    }
+
     function rotateSigner(address newSigner) external onlyOwner {
         if (newSigner == address(0)) revert ThoughtProofHook__ZeroAddress();
         address old = trustedSigner;
