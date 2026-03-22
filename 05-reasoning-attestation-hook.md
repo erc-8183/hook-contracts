@@ -101,6 +101,17 @@ The signature covers `keccak256(abi.encode(jobId, claimHash, verdict, confidence
 - **Signature malleability**: EIP-2 `s`-value restriction enforced in `_recoverSigner`
 - **Non-blocking for non-submit actions**: Only `_preSubmit` is overridden; fund, complete, reject pass through untouched
 
+
+### Tunable Security & The Liveness Trade-off
+
+A strict multi-model consensus can sometimes be *too* conservative (a "liveness failure"), where routine transactions are blocked because a single model in the consensus is overly paranoid about crypto trades. 
+
+To solve this, `ThoughtProofReasoningHook` implements **Tunable Security** via the `minConfidence` variable. The Smart Contract owner can dynamically set the acceptable confidence threshold:
+- **Low Risk (e.g., $50 DCA):** `minConfidence = 5000` (50%). A single model's approval or a majority vote is sufficient.
+- **High Risk (e.g., $50k Swap):** `minConfidence = 8500` (85%). Requires unanimous, high-confidence consensus across all models.
+
+This calibration layer ensures the agent remains functional for routine tasks while maintaining an impenetrable safety net for critical operations.
+
 ## Integration Example
 
 ```solidity
@@ -108,7 +119,8 @@ The signature covers `keccak256(abi.encode(jobId, claimHash, verdict, confidence
 ThoughtProofReasoningHook hook = new ThoughtProofReasoningHook(
     address(agenticCommerce),     // ACP contract
     0xThoughtProofSignerAddress,  // From ThoughtProof JWKS
-    owner                         // Admin for signer rotation
+    owner,                        // Admin for signer rotation
+    7500                          // minConfidence (75%)
 );
 
 // Create a job with the hook attached
