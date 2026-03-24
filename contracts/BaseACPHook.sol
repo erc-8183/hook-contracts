@@ -45,11 +45,11 @@ abstract contract BaseACPHook is IACPHook {
     // --- Selector constants (avoid repeated keccak at runtime) ----------------
     // These match AgenticCommerceHooked function selectors.
     bytes4 private constant SEL_SET_PROVIDER = bytes4(keccak256("setProvider(uint256,address,bytes)"));
-    bytes4 private constant SEL_SET_BUDGET   = bytes4(keccak256("setBudget(uint256,uint256,bytes)"));
-    bytes4 private constant SEL_FUND         = bytes4(keccak256("fund(uint256,bytes)"));
-    bytes4 private constant SEL_SUBMIT       = bytes4(keccak256("submit(uint256,bytes32,bytes)"));
-    bytes4 private constant SEL_COMPLETE     = bytes4(keccak256("complete(uint256,bytes32,bytes)"));
-    bytes4 private constant SEL_REJECT       = bytes4(keccak256("reject(uint256,bytes32,bytes)"));
+    bytes4 private constant SEL_SET_BUDGET = bytes4(keccak256("setBudget(uint256,uint256,bytes)"));
+    bytes4 private constant SEL_FUND = bytes4(keccak256("fund(uint256,uint256,bytes)"));
+    bytes4 private constant SEL_SUBMIT = bytes4(keccak256("submit(uint256,bytes32,bytes)"));
+    bytes4 private constant SEL_COMPLETE = bytes4(keccak256("complete(uint256,bytes32,bytes)"));
+    bytes4 private constant SEL_REJECT = bytes4(keccak256("reject(uint256,bytes32,bytes)"));
 
     // --- IACPHook implementation (router) ------------------------------------
 
@@ -61,7 +61,10 @@ abstract contract BaseACPHook is IACPHook {
             (uint256 amount, bytes memory optParams) = abi.decode(data, (uint256, bytes));
             _preSetBudget(jobId, amount, optParams);
         } else if (selector == SEL_FUND) {
-            _preFund(jobId, data);
+            if (data.length >= 64) {
+                (uint256 expectedBudget, bytes memory optParams) = abi.decode(data, (uint256, bytes));
+                _preFund(jobId, expectedBudget, optParams);
+            }
         } else if (selector == SEL_SUBMIT) {
             (bytes32 deliverable, bytes memory optParams) = abi.decode(data, (bytes32, bytes));
             _preSubmit(jobId, deliverable, optParams);
@@ -82,7 +85,10 @@ abstract contract BaseACPHook is IACPHook {
             (uint256 amount, bytes memory optParams) = abi.decode(data, (uint256, bytes));
             _postSetBudget(jobId, amount, optParams);
         } else if (selector == SEL_FUND) {
-            _postFund(jobId, data);
+            if (data.length >= 64) {
+                (uint256 expectedBudget, bytes memory optParams) = abi.decode(data, (uint256, bytes));
+                _postFund(jobId, expectedBudget, optParams);
+            }
         } else if (selector == SEL_SUBMIT) {
             (bytes32 deliverable, bytes memory optParams) = abi.decode(data, (bytes32, bytes));
             _postSubmit(jobId, deliverable, optParams);
@@ -103,8 +109,8 @@ abstract contract BaseACPHook is IACPHook {
     function _preSetBudget(uint256 jobId, uint256 amount, bytes memory optParams) internal virtual {}
     function _postSetBudget(uint256 jobId, uint256 amount, bytes memory optParams) internal virtual {}
 
-    function _preFund(uint256 jobId, bytes memory optParams) internal virtual {}
-    function _postFund(uint256 jobId, bytes memory optParams) internal virtual {}
+    function _preFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal virtual {}
+    function _postFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal virtual {}
 
     function _preSubmit(uint256 jobId, bytes32 deliverable, bytes memory optParams) internal virtual {}
     function _postSubmit(uint256 jobId, bytes32 deliverable, bytes memory optParams) internal virtual {}
@@ -118,13 +124,10 @@ abstract contract BaseACPHook is IACPHook {
     // --- Helper: read job from ACP contract ----------------------------------
 
     function _getJobClient(uint256 jobId) internal view returns (address client) {
-        (bool ok, bytes memory data) = acpContract.staticcall(
-            abi.encodeWithSignature("getJob(uint256)", jobId)
-        );
+        (bool ok, bytes memory data) = acpContract.staticcall(abi.encodeWithSignature("getJob(uint256)", jobId));
         require(ok, "getJob failed");
         // Job struct: (id, client, provider, evaluator, hook, description, budget, expiredAt, status)
-        (, client,,,,,,, ) = abi.decode(
-            data, (uint256, address, address, address, address, string, uint256, uint256, uint8)
-        );
+        (, client,,,,,,,) =
+            abi.decode(data, (uint256, address, address, address, address, string, uint256, uint256, uint8));
     }
 }

@@ -13,6 +13,7 @@
 | **[AgenticCommerceHooked.sol](./contracts/AgenticCommerceHooked.sol)** | Hookable variant of the core protocol. Same lifecycle with an optional `hook` address per job and `optParams` on all hookable functions. `claimRefund` is deliberately not hookable. |
 | **[IACPHook.sol](./contracts/IACPHook.sol)** | Interface all hooks must implement: `beforeAction` and `afterAction`. |
 | **[BaseACPHook.sol](./contracts/BaseACPHook.sol)** | Abstract base that routes `beforeAction`/`afterAction` to named virtual functions (`_preFund`, `_postComplete`, etc.). Inherit this and override only what you need. |
+| **[IMultiPartyCoordination.sol](./contracts/interfaces/IMultiPartyCoordination.sol)** | Generic interface for multi-party coordination frameworks (ERC-8001, ERC-8004, custom). |
 
 ## Hook Examples
 
@@ -20,7 +21,8 @@
 |----------|---------|-------------|
 | [BiddingHook.sol](./contracts/hooks/BiddingHook.sol) | A — Simple Policy | Off-chain signed bidding for provider selection. Providers sign bid commitments; the hook verifies the winning signature on-chain via `setProvider`. Zero direct external calls — everything flows through core → hook callbacks. |
 | [FundTransferHook.sol](./contracts/hooks/FundTransferHook.sol) | B — Advanced Escrow | Two-phase fund transfer for token conversion/bridging jobs. Client capital flows to provider at `fund`; provider deposits output tokens at `submit`; buyer receives them at `complete`. |
-| [ERC8001CoordinationHook.sol](./contracts/hooks/ERC8001CoordinationHook.sol) | B — Advanced Escrow | Multi-party coordination for job completion/rejection using ERC-8001 standard. Requires cryptographic consensus from all participants before `complete` or `reject` can execute. Delegates coordination logic to external ERC-8001 contract. |
+| [ERC8001CoordinationHook.sol](./contracts/hooks/ERC8001CoordinationHook.sol) | B — Advanced Escrow | Multi-party coordination for job completion/rejection using ERC-8001. Requires cryptographic consensus from all participants before `complete` or `reject` can execute. Perfect for high-value jobs where unilateral decisions are risky. |
+| [MultiProviderHook.sol](./contracts/hooks/MultiProviderHook.sol) | B — Advanced Escrow | Multi-provider job management with automatic payment distribution. Supports jobs requiring multiple providers working together (e.g., 5 reviewers, 3 validators). Distributes payments to all providers upon job completion via ERC-8004 provider registry. Can be combined with ERC-8001 coordination for consensus + payment distribution. |
 
 ## Building a Hook
 
@@ -54,6 +56,7 @@ forge test -vvv
 # Run specific test file
 forge test --match-path test/ERC8001.t.sol
 forge test --match-path test/ERC8001CoordinationHook.t.sol
+forge test --match-path test/MultiProviderHook.t.sol
 
 # Generate coverage report
 forge coverage

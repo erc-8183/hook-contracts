@@ -126,21 +126,14 @@ interface IERC8001 {
      * @dev Emitted when a coordination is executed.
      */
     event CoordinationExecuted(
-        bytes32 indexed intentHash,
-        address indexed executor,
-        bool success,
-        uint256 gasUsed,
-        bytes result
+        bytes32 indexed intentHash, address indexed executor, bool success, uint256 gasUsed, bytes result
     );
 
     /**
      * @dev Emitted when a coordination is cancelled.
      */
     event CoordinationCancelled(
-        bytes32 indexed intentHash,
-        address indexed canceller,
-        string reason,
-        uint8 finalStatus
+        bytes32 indexed intentHash, address indexed canceller, string reason, uint8 finalStatus
     );
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -207,8 +200,8 @@ interface IERC8001 {
      * @return allAccepted True if all participants have now accepted
      */
     function acceptCoordination(bytes32 intentHash, AcceptanceAttestation calldata attestation)
-    external
-    returns (bool allAccepted);
+        external
+        returns (bool allAccepted);
 
     /**
      * @notice Execute a ready coordination.
@@ -229,11 +222,9 @@ interface IERC8001 {
      * @return success Whether execution succeeded
      * @return result  Return data from execution
      */
-    function executeCoordination(
-        bytes32 intentHash,
-        CoordinationPayload calldata payload,
-        bytes calldata executionData
-    ) external returns (bool success, bytes memory result);
+    function executeCoordination(bytes32 intentHash, CoordinationPayload calldata payload, bytes calldata executionData)
+        external
+        returns (bool success, bytes memory result);
 
     /**
      * @notice Cancel a coordination.
@@ -269,15 +260,15 @@ interface IERC8001 {
      * @return expiry     Intent expiration timestamp
      */
     function getCoordinationStatus(bytes32 intentHash)
-    external
-    view
-    returns (
-        Status status,
-        address proposer,
-        address[] memory participants,
-        address[] memory acceptedBy,
-        uint256 expiry
-    );
+        external
+        view
+        returns (
+            Status status,
+            address proposer,
+            address[] memory participants,
+            address[] memory acceptedBy,
+            uint256 expiry
+        );
 
     /**
      * @notice Get the number of required acceptances.

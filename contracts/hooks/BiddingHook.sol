@@ -108,7 +108,8 @@ contract BiddingHook is BaseACPHook {
     }
 
     /// @dev Block funding if budget hasn't been set to the committed bid amount.
-    function _preFund(uint256 jobId, bytes memory) internal override {
+    function _preFund(uint256 jobId, uint256 expectedBudget, bytes memory) internal override {
+        (expectedBudget); // silence unused variable warning
         Bidding storage b = biddings[jobId];
         if (b.committedAmount == 0) return; // no bidding for this job
         uint256 budget = _getJobBudget(jobId);
@@ -122,13 +123,10 @@ contract BiddingHook is BaseACPHook {
     // --- Helper --------------------------------------------------------------
 
     function _getJobBudget(uint256 jobId) internal view returns (uint256 budget) {
-        (bool ok, bytes memory data) = acpContract.staticcall(
-            abi.encodeWithSignature("getJob(uint256)", jobId)
-        );
+        (bool ok, bytes memory data) = acpContract.staticcall(abi.encodeWithSignature("getJob(uint256)", jobId));
         require(ok, "getJob failed");
         // Job struct: (id, client, provider, evaluator, hook, description, budget, expiredAt, status)
-        (,,,,,, budget,,) = abi.decode(
-            data, (uint256, address, address, address, address, string, uint256, uint256, uint8)
-        );
+        (,,,,,, budget,,) =
+            abi.decode(data, (uint256, address, address, address, address, string, uint256, uint256, uint8));
     }
 }

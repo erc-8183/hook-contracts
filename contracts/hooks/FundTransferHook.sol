@@ -90,15 +90,13 @@ contract FundTransferHook is BaseACPHook {
         (address buyer, uint256 transferAmount) = abi.decode(optParams, (address, uint256));
         if (buyer == address(0)) revert ZeroAddress();
         if (transferAmount == 0) revert ZeroAmount();
-        commitments[jobId] = TransferCommitment({
-            buyer: buyer,
-            transferAmount: transferAmount,
-            providerDeposited: false
-        });
+        commitments[jobId] =
+            TransferCommitment({buyer: buyer, transferAmount: transferAmount, providerDeposited: false});
     }
 
     /// @dev Verify client has approved this hook for the committed transferAmount.
-    function _preFund(uint256 jobId, bytes memory) internal override {
+    function _preFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
+        (expectedBudget, optParams); // silence unused variable warnings
         TransferCommitment memory c = commitments[jobId];
         if (c.buyer == address(0)) revert CommitmentNotSet();
         address client = _getJobClient(jobId);
@@ -107,7 +105,8 @@ contract FundTransferHook is BaseACPHook {
     }
 
     /// @dev Pull transferAmount from client and forward to provider (capital).
-    function _postFund(uint256 jobId, bytes memory) internal override {
+    function _postFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
+        (expectedBudget, optParams); // silence unused variable warnings
         TransferCommitment memory c = commitments[jobId];
         address client = _getJobClient(jobId);
         (address provider,) = _getJobProviderAndStatus(jobId);
@@ -164,7 +163,11 @@ contract FundTransferHook is BaseACPHook {
     // View
     // -------------------------------------------------------------------------
 
-    function getCommitment(uint256 jobId) external view returns (address buyer, uint256 transferAmount, bool providerDeposited) {
+    function getCommitment(uint256 jobId)
+        external
+        view
+        returns (address buyer, uint256 transferAmount, bool providerDeposited)
+    {
         TransferCommitment memory c = commitments[jobId];
         return (c.buyer, c.transferAmount, c.providerDeposited);
     }
@@ -174,13 +177,10 @@ contract FundTransferHook is BaseACPHook {
     // -------------------------------------------------------------------------
 
     function _getJobProviderAndStatus(uint256 jobId) internal view returns (address provider, uint8 status) {
-        (bool ok, bytes memory data) = acpContract.staticcall(
-            abi.encodeWithSignature("getJob(uint256)", jobId)
-        );
+        (bool ok, bytes memory data) = acpContract.staticcall(abi.encodeWithSignature("getJob(uint256)", jobId));
         require(ok, "getJob failed");
         // Job struct: (id, client, provider, evaluator, hook, description, budget, expiredAt, status)
-        (,, provider,,,,,, status) = abi.decode(
-            data, (uint256, address, address, address, address, string, uint256, uint256, uint8)
-        );
+        (,, provider,,,,,, status) =
+            abi.decode(data, (uint256, address, address, address, address, string, uint256, uint256, uint8));
     }
 }

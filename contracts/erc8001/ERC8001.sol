@@ -40,8 +40,8 @@ contract ERC8001 is IERC8001 {
 
     struct Coordination {
         Status status;
-        address proposer;  // intent.agentId
-        address operator;  // msg.sender at proposal time (may be a hook contract)
+        address proposer; // intent.agentId
+        address operator; // msg.sender at proposal time (may be a hook contract)
         address[] participants;
         mapping(address => bool) hasAccepted;
         address[] acceptedBy;
@@ -182,11 +182,7 @@ contract ERC8001 is IERC8001 {
         agentNonces[intent.agentId] = intent.nonce;
 
         emit CoordinationProposed(
-            intentHash,
-            intent.agentId,
-            intent.coordinationType,
-            intent.participants.length,
-            intent.coordinationValue
+            intentHash, intent.agentId, intent.coordinationType, intent.participants.length, intent.coordinationValue
         );
 
         return intentHash;
@@ -198,10 +194,10 @@ contract ERC8001 is IERC8001 {
      * @param attestation The acceptance attestation
      * @return allAccepted True if all participants have now accepted
      */
-    function acceptCoordination(
-        bytes32 intentHash,
-        AcceptanceAttestation calldata attestation
-    ) external returns (bool allAccepted) {
+    function acceptCoordination(bytes32 intentHash, AcceptanceAttestation calldata attestation)
+        external
+        returns (bool allAccepted)
+    {
         Coordination storage c = coordinations[intentHash];
 
         // Check coordination exists and not expired
@@ -230,14 +226,16 @@ contract ERC8001 is IERC8001 {
         if (attestation.intentHash != intentHash) revert ERC8001_PayloadHashMismatch();
 
         // Verify signature
-        bytes32 attestationStructHash = keccak256(abi.encode(
-            ACCEPTANCE_TYPEHASH,
-            attestation.intentHash,
-            attestation.participant,
-            attestation.nonce,
-            attestation.expiry,
-            attestation.conditionsHash
-        ));
+        bytes32 attestationStructHash = keccak256(
+            abi.encode(
+                ACCEPTANCE_TYPEHASH,
+                attestation.intentHash,
+                attestation.participant,
+                attestation.nonce,
+                attestation.expiry,
+                attestation.conditionsHash
+            )
+        );
         bytes32 attestationDigest = keccak256(abi.encodePacked("\x19\x01", _domainSeparator, attestationStructHash));
         if (!_verifySignature(participant, attestationDigest, attestation.signature)) revert ERC8001_BadSignature();
 
@@ -246,13 +244,7 @@ contract ERC8001 is IERC8001 {
         c.acceptedBy.push(participant);
 
         bytes32 acceptanceHash = keccak256(abi.encode(attestation));
-        emit CoordinationAccepted(
-            intentHash,
-            participant,
-            acceptanceHash,
-            c.acceptedBy.length,
-            c.participants.length
-        );
+        emit CoordinationAccepted(intentHash, participant, acceptanceHash, c.acceptedBy.length, c.participants.length);
 
         // Check if all accepted
         allAccepted = (c.acceptedBy.length == c.participants.length);
@@ -271,11 +263,10 @@ contract ERC8001 is IERC8001 {
      * @return success Whether execution succeeded
      * @return result Return data from execution
      */
-    function executeCoordination(
-        bytes32 intentHash,
-        CoordinationPayload calldata payload,
-        bytes calldata executionData
-    ) external returns (bool success, bytes memory result) {
+    function executeCoordination(bytes32 intentHash, CoordinationPayload calldata payload, bytes calldata executionData)
+        external
+        returns (bool success, bytes memory result)
+    {
         Coordination storage c = coordinations[intentHash];
 
         // Validate status
@@ -321,9 +312,7 @@ contract ERC8001 is IERC8001 {
 
         // Before expiry: only proposer (agentId) or the operator (hook) that submitted
         //   the proposal can cancel. After expiry: anyone can cancel.
-        if (block.timestamp <= c.expiry &&
-            msg.sender != c.proposer &&
-            msg.sender != c.operator) {
+        if (block.timestamp <= c.expiry && msg.sender != c.proposer && msg.sender != c.operator) {
             revert ERC8001_NotProposer();
         }
 
@@ -401,16 +390,18 @@ contract ERC8001 is IERC8001 {
      */
     function getIntentHash(AgentIntent calldata intent) public pure returns (bytes32 intentHash) {
         bytes32 participantsHash = keccak256(abi.encodePacked(intent.participants));
-        return keccak256(abi.encode(
-            AGENT_INTENT_TYPEHASH,
-            intent.payloadHash,
-            intent.expiry,
-            intent.nonce,
-            intent.agentId,
-            intent.coordinationType,
-            intent.coordinationValue,
-            participantsHash
-        ));
+        return keccak256(
+            abi.encode(
+                AGENT_INTENT_TYPEHASH,
+                intent.payloadHash,
+                intent.expiry,
+                intent.nonce,
+                intent.agentId,
+                intent.coordinationType,
+                intent.coordinationValue,
+                participantsHash
+            )
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -517,10 +508,16 @@ contract ERC8001 is IERC8001 {
      * @return result Return data from execution
      */
     function _executeCoordinationHook(
-        bytes32 /* intentHash */,
-        CoordinationPayload calldata /* payload */,
+        bytes32,
+        /* intentHash */
+        CoordinationPayload calldata,
+        /* payload */
         bytes calldata /* executionData */
-    ) internal virtual returns (bool success, bytes memory result) {
+    )
+        internal
+        virtual
+        returns (bool success, bytes memory result)
+    {
         // Default: no-op, return success
         // Subclasses should override this
         return (true, "");
