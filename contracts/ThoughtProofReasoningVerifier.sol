@@ -34,6 +34,7 @@ contract ThoughtProofReasoningVerifier is IReasoningVerifier {
         uint256 confidence;       // confidence * 1000 (e.g. 850 = 0.850)
         uint256 verifierCount;    // number of models that participated
         bytes32 attestationHash;  // keccak256 of the full Epistemic Block (stored off-chain)
+        bytes32 deliverableHash;  // keccak256 of the deliverable content that was verified
         uint256 timestamp;
     }
 
@@ -114,12 +115,14 @@ contract ThoughtProofReasoningVerifier is IReasoningVerifier {
     /// @param confidence      Confidence * 1000 (0–1000)
     /// @param verifierCount   Number of models that participated
     /// @param attestationHash keccak256 of the full Epistemic Block (resolvable via api.thoughtproof.ai)
+    /// @param deliverableHash keccak256 of the deliverable content verified (binds attestation to content)
     /// @param signature       65-byte ECDSA signature from verifierSigner
     function submitVerification(
         bytes32 claimHash,
         uint256 confidence,
         uint256 verifierCount,
         bytes32 attestationHash,
+        bytes32 deliverableHash,
         bytes calldata signature
     ) external {
         // 1. Validate parameters
@@ -130,7 +133,7 @@ contract ThoughtProofReasoningVerifier is IReasoningVerifier {
         if (records[claimHash].timestamp != 0) revert AlreadySubmitted();
 
         // 3. Verify signature (includes chainId — no cross-chain replay)
-        _verifySignature(claimHash, confidence, verifierCount, attestationHash, signature);
+        _verifySignature(claimHash, confidence, verifierCount, attestationHash, deliverableHash, signature);
 
         // 4. Store result (CEI: state update before any external interaction)
         totalSubmissions++;
@@ -139,6 +142,7 @@ contract ThoughtProofReasoningVerifier is IReasoningVerifier {
             confidence: confidence,
             verifierCount: verifierCount,
             attestationHash: attestationHash,
+            deliverableHash: deliverableHash,
             timestamp: block.timestamp
         });
 
@@ -181,10 +185,11 @@ contract ThoughtProofReasoningVerifier is IReasoningVerifier {
         uint256 confidence,
         uint256 verifierCount,
         bytes32 attestationHash,
+        bytes32 deliverableHash,
         bytes calldata signature
     ) internal {
         bytes32 dataHash = keccak256(abi.encodePacked(
-            claimHash, confidence, verifierCount, attestationHash, block.chainid
+            claimHash, confidence, verifierCount, attestationHash, deliverableHash, block.chainid
         ));
         bytes32 messageHash = keccak256(abi.encodePacked(
             "\x19Ethereum Signed Message:\n32", dataHash

@@ -42,6 +42,7 @@ contract ThoughtProofReasoningVerifierTest is Test {
     address signer;
 
     uint256 constant MIN_VERIFIERS = 3;
+    bytes32 constant DEFAULT_DELIVERABLE = keccak256("test-deliverable");
 
     function setUp() public {
         signer = vm.addr(signerKey);
@@ -54,10 +55,11 @@ contract ThoughtProofReasoningVerifierTest is Test {
         bytes32 claimHash,
         uint256 confidence,
         uint256 verifierCount,
-        bytes32 attestationHash
+        bytes32 attestationHash,
+        bytes32 deliverableHash
     ) internal view returns (bytes memory) {
         bytes32 dataHash = keccak256(abi.encodePacked(
-            claimHash, confidence, verifierCount, attestationHash, block.chainid
+            claimHash, confidence, verifierCount, attestationHash, deliverableHash, block.chainid
         ));
         bytes32 messageHash = keccak256(abi.encodePacked(
             "\x19Ethereum Signed Message:\n32", dataHash
@@ -102,8 +104,8 @@ contract ThoughtProofReasoningVerifierTest is Test {
         uint256 verifierCount = 3;
         bytes32 attestationHash = keccak256("epistemic-block-001");
 
-        bytes memory sig = _sign(claimHash, confidence, verifierCount, attestationHash);
-        verifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, sig);
+        bytes memory sig = _sign(claimHash, confidence, verifierCount, attestationHash, DEFAULT_DELIVERABLE);
+        verifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, DEFAULT_DELIVERABLE, sig);
 
         (bool verified, uint256 conf) = verifier.verifyReasoning(claimHash);
         assertTrue(verified);
@@ -117,8 +119,8 @@ contract ThoughtProofReasoningVerifierTest is Test {
         uint256 verifierCount = 5;
         bytes32 attestationHash = keccak256("block-002");
 
-        bytes memory sig = _sign(claimHash, confidence, verifierCount, attestationHash);
-        verifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, sig);
+        bytes memory sig = _sign(claimHash, confidence, verifierCount, attestationHash, DEFAULT_DELIVERABLE);
+        verifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, DEFAULT_DELIVERABLE, sig);
 
         ThoughtProofReasoningVerifier.VerificationRecord memory rec = verifier.getRecord(claimHash);
         assertTrue(rec.verified);
@@ -134,8 +136,8 @@ contract ThoughtProofReasoningVerifierTest is Test {
         uint256 confidence = 100;
         bytes32 attestationHash = keccak256("block-low");
 
-        bytes memory sig = _sign(claimHash, confidence, MIN_VERIFIERS, attestationHash);
-        verifier.submitVerification(claimHash, confidence, MIN_VERIFIERS, attestationHash, sig);
+        bytes memory sig = _sign(claimHash, confidence, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE);
+        verifier.submitVerification(claimHash, confidence, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, sig);
 
         (bool verified, uint256 conf) = verifier.verifyReasoning(claimHash);
         assertTrue(verified);
@@ -146,37 +148,37 @@ contract ThoughtProofReasoningVerifierTest is Test {
 
     function test_Submit_RevertOnZeroClaimHash() public {
         bytes32 attestationHash = keccak256("block");
-        bytes memory sig = _sign(bytes32(0), 850, MIN_VERIFIERS, attestationHash);
+        bytes memory sig = _sign(bytes32(0), 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE);
         vm.expectRevert(ThoughtProofReasoningVerifier.InvalidParameters.selector);
-        verifier.submitVerification(bytes32(0), 850, MIN_VERIFIERS, attestationHash, sig);
+        verifier.submitVerification(bytes32(0), 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, sig);
     }
 
     function test_Submit_RevertOnZeroAttestationHash() public {
         bytes32 claimHash = keccak256("claim");
-        bytes memory sig = _sign(claimHash, 850, MIN_VERIFIERS, bytes32(0));
+        bytes memory sig = _sign(claimHash, 850, MIN_VERIFIERS, bytes32(0), DEFAULT_DELIVERABLE);
         vm.expectRevert(ThoughtProofReasoningVerifier.InvalidParameters.selector);
-        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, bytes32(0), sig);
+        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, bytes32(0), DEFAULT_DELIVERABLE, sig);
     }
 
     function test_Submit_RevertBelowMinVerifiers() public {
         bytes32 claimHash = keccak256("claim-fewverifiers");
         bytes32 attestationHash = keccak256("block");
-        bytes memory sig = _sign(claimHash, 850, 2, attestationHash);
+        bytes memory sig = _sign(claimHash, 850, 2, attestationHash, DEFAULT_DELIVERABLE);
         vm.expectRevert(ThoughtProofReasoningVerifier.BelowMinVerifiers.selector);
-        verifier.submitVerification(claimHash, 850, 2, attestationHash, sig);
+        verifier.submitVerification(claimHash, 850, 2, attestationHash, DEFAULT_DELIVERABLE, sig);
     }
 
     function test_Submit_RevertDoubleSubmission() public {
         bytes32 claimHash = keccak256("claim-double");
         bytes32 attestationHash = keccak256("block-double");
 
-        bytes memory sig = _sign(claimHash, 850, MIN_VERIFIERS, attestationHash);
-        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash, sig);
+        bytes memory sig = _sign(claimHash, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE);
+        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, sig);
 
         bytes32 attestationHash2 = keccak256("block-double-2");
-        bytes memory sig2 = _sign(claimHash, 850, MIN_VERIFIERS, attestationHash2);
+        bytes memory sig2 = _sign(claimHash, 850, MIN_VERIFIERS, attestationHash2, DEFAULT_DELIVERABLE);
         vm.expectRevert(ThoughtProofReasoningVerifier.AlreadySubmitted.selector);
-        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash2, sig2);
+        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash2, DEFAULT_DELIVERABLE, sig2);
     }
 
     function test_Submit_RevertInvalidSignature() public {
@@ -185,7 +187,7 @@ contract ThoughtProofReasoningVerifierTest is Test {
 
         uint256 wrongKey = 0xBAD;
         bytes32 dataHash = keccak256(abi.encodePacked(
-            claimHash, uint256(850), uint256(MIN_VERIFIERS), attestationHash, block.chainid
+            claimHash, uint256(850), uint256(MIN_VERIFIERS), attestationHash, DEFAULT_DELIVERABLE, block.chainid
         ));
         bytes32 messageHash = keccak256(abi.encodePacked(
             "\x19Ethereum Signed Message:\n32", dataHash
@@ -194,7 +196,7 @@ contract ThoughtProofReasoningVerifierTest is Test {
         bytes memory badSig = abi.encodePacked(r, s, v);
 
         vm.expectRevert(ThoughtProofReasoningVerifier.InvalidSignature.selector);
-        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash, badSig);
+        verifier.submitVerification(claimHash, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, badSig);
     }
 
     function test_Submit_RevertSignatureReplay() public {
@@ -202,12 +204,12 @@ contract ThoughtProofReasoningVerifierTest is Test {
         bytes32 claimHash2 = keccak256("claim-replay-2");
         bytes32 attestationHash = keccak256("block-replay");
 
-        bytes memory sig = _sign(claimHash1, 850, MIN_VERIFIERS, attestationHash);
-        verifier.submitVerification(claimHash1, 850, MIN_VERIFIERS, attestationHash, sig);
+        bytes memory sig = _sign(claimHash1, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE);
+        verifier.submitVerification(claimHash1, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, sig);
 
         // Same signature, different claim — replay attempt
         vm.expectRevert(ThoughtProofReasoningVerifier.SignatureAlreadyUsed.selector);
-        verifier.submitVerification(claimHash2, 850, MIN_VERIFIERS, attestationHash, sig);
+        verifier.submitVerification(claimHash2, 850, MIN_VERIFIERS, attestationHash, DEFAULT_DELIVERABLE, sig);
     }
 
     // ---- Admin ----
@@ -389,15 +391,16 @@ contract ReasoningVerifierHookTest is Test {
         tpHook.beforeAction(claimHash);
 
         // Submit to verifier
+        bytes32 deliverableHash = keccak256("integration-deliverable");
         bytes32 dataHash = keccak256(abi.encodePacked(
-            claimHash, confidence, verifierCount, attestationHash, block.chainid
+            claimHash, confidence, verifierCount, attestationHash, deliverableHash, block.chainid
         ));
         bytes32 messageHash = keccak256(abi.encodePacked(
             "\x19Ethereum Signed Message:\n32", dataHash
         ));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, messageHash);
         bytes memory sig = abi.encodePacked(r, s, v);
-        tpVerifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, sig);
+        tpVerifier.submitVerification(claimHash, confidence, verifierCount, attestationHash, deliverableHash, sig);
 
         // After submission: hook should pass
         tpHook.beforeAction(claimHash);
