@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../AgenticCommerceHooked.sol";
+import "@acp/AgenticCommerce.sol";
 import "../BaseACPHook.sol";
 import "./IUnderwritingHookView.sol";
 import "./UnderwritingTypes.sol";
@@ -99,7 +99,7 @@ contract UnderwritingHook is BaseACPHook, IUnderwritingHookView, UnderwritingWor
     error WiringIncomplete();
     error InvalidWiring();
 
-    AgenticCommerceHooked public immutable acp;
+    AgenticCommerce public immutable acp;
     address public immutable admin;
     address public evaluator;
     address public coordinator;
@@ -116,7 +116,7 @@ contract UnderwritingHook is BaseACPHook, IUnderwritingHookView, UnderwritingWor
 
     constructor(address acpContract_, address admin_) BaseACPHook(acpContract_) {
         if (admin_ == address(0)) revert ZeroAddress();
-        acp = AgenticCommerceHooked(acpContract_);
+        acp = AgenticCommerce(acpContract_);
         admin = admin_;
     }
 
@@ -175,40 +175,45 @@ contract UnderwritingHook is BaseACPHook, IUnderwritingHookView, UnderwritingWor
         _markProtectedWorkflow(jobId);
     }
 
-    function _preSetBudget(uint256 jobId, uint256 amount, bytes memory optParams) internal override {
+    function _preSetBudget(uint256 jobId, address, address token, uint256 amount, bytes memory optParams) internal override {
         _requireWiring();
-        _preSetBudgetWorkflow(acp, evaluator, jobId, amount, optParams);
+        _preSetBudgetWorkflow(acp, evaluator, jobId, token, amount, optParams);
     }
 
-    function _preFund(uint256 jobId, bytes memory) internal view override {
+    function _preFund(uint256 jobId, address, bytes memory) internal view override {
         _preFundWorkflow(acp, jobId);
     }
 
-    function _postFund(uint256 jobId, bytes memory) internal override {
+    function _postFund(uint256 jobId, address, bytes memory) internal override {
         _postFundWorkflow(jobId);
     }
 
-    function _preSubmit(uint256 jobId, bytes32, bytes memory) internal view override {
+    function _preSubmit(uint256 jobId, address, bytes32, bytes memory) internal view override {
         _preSubmitWorkflow(acp, jobId);
     }
 
-    function _postSubmit(uint256 jobId, bytes32 deliverable, bytes memory optParams) internal override {
+    function _postSubmit(
+        uint256 jobId,
+        address,
+        bytes32 deliverable,
+        bytes memory optParams
+    ) internal override {
         _postSubmitWorkflow(jobId, deliverable, optParams);
     }
 
-    function _postComplete(uint256 jobId, bytes32, bytes memory) internal override {
+    function _postComplete(uint256 jobId, address, bytes32, bytes memory) internal override {
         _postCompleteWorkflow(jobId);
     }
 
-    function _preComplete(uint256 jobId, bytes32, bytes memory) internal view override {
+    function _preComplete(uint256 jobId, address, bytes32, bytes memory) internal view override {
         _preDecisionWorkflow(acp, jobId);
     }
 
-    function _preReject(uint256 jobId, bytes32, bytes memory) internal view override {
+    function _preReject(uint256 jobId, address, bytes32, bytes memory) internal view override {
         _preRejectWorkflow(acp, jobId);
     }
 
-    function _postReject(uint256 jobId, bytes32, bytes memory) internal override {
+    function _postReject(uint256 jobId, address, bytes32, bytes memory) internal override {
         _postRejectWorkflow(jobId);
     }
 

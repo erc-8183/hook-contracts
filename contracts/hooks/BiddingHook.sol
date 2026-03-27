@@ -16,8 +16,8 @@ import "@acp/AgenticCommerce.sol";
  * A client wants to hire the cheapest (or best) agent for a job but does not
  * know upfront who to assign. Providers bid off-chain by signing a message
  * committing to a (jobId, bidAmount) pair. The client collects bids, selects
- * the winner, and submits the winning bid's signature via `setProvider`. The
- * hook verifies the signature on-chain — proving the provider actually
+ * the winner, sets the provider, and then submits the winning bid signature
+ * via `setBudget`. The hook verifies the signature on-chain — proving the provider actually
  * committed to that price.
  *
  * FLOW (all interactions through core contract -> hook callbacks)
@@ -28,14 +28,13 @@ import "@acp/AgenticCommerce.sol";
  *  3. Bidding happens OFF-CHAIN:
  *     Providers sign: keccak256(abi.encode(chainId, hookAddress, jobId, bidAmount))
  *     Client collects signed bids and selects the winner.
- *  4. setProvider(jobId, winnerAddress, agentId) — no hook, just sets provider.
+ *  4. setProvider(jobId, winnerAddress, ...) — core sets provider with no hook logic.
  *  5. setBudget(jobId, bidAmount, optParams=abi.encode(signature))
- *     -> _preSetBudget (mode 2): verify deadline passed, recover signer from
- *        signature, validate signer == provider, store committed bidAmount,
- *        enforce budget == bidAmount.
- *  6. fund(jobId, ...) — _preFund enforces budget == committedAmount (blocks
+ *     → _preSetBudget: verify deadline passed, recover signer from signature,
+ *       validate signer == provider, store committed bidAmount.
+ *  6. fund(jobId, "") — _preFund enforces budget == committedAmount (blocks
  *     funding if client skipped step 5).
- *  7. Job continues normally: submit -> complete.
+ *  7. Job continues normally: submit → complete.
  *
  * TRUST MODEL
  * -----------
@@ -60,7 +59,6 @@ contract BiddingHook is BaseACPHook {
     error DeadlineMustBeFuture();
     error BiddingStillOpen();
     error InvalidBidSignature();
-    error NoBidDeadline();
     error BudgetMismatch();
     error ProviderNotSet();
 
@@ -68,12 +66,18 @@ contract BiddingHook is BaseACPHook {
 
     // --- Hook callbacks only (no direct external functions) ---
 
-    /// @dev Three modes based on bidding state:
+    /// @dev Three modes:
     ///  1. deadline == 0: initial call, decode deadline from optParams.
     ///  2. deadline > 0 && committedAmount == 0: bid verification, decode
     ///     signature from optParams, verify against provider.
     ///  3. committedAmount > 0: enforce budget == committedAmount.
-    function _preSetBudget(uint256 jobId, address, uint256 amount, bytes memory optParams) internal override {
+    function _preSetBudget(
+        uint256 jobId,
+        address,
+        address,
+        uint256 amount,
+        bytes memory optParams
+    ) internal override {
         Bidding storage b = biddings[jobId];
 
         // Mode 3: enforce budget matches the winning bid
@@ -93,12 +97,11 @@ contract BiddingHook is BaseACPHook {
 
         // Mode 2: verify signed bid and store committedAmount
         if (block.timestamp < b.deadline) revert BiddingStillOpen();
-
-        address provider = _core().getJob(jobId).provider;
+        AgenticCommerce.Job memory job = _core().getJob(jobId);
+        address provider = job.provider;
         if (provider == address(0)) revert ProviderNotSet();
 
         bytes memory signature = abi.decode(optParams, (bytes));
-
         bytes32 messageHash = keccak256(abi.encode(block.chainid, address(this), jobId, amount));
         bytes32 ethSignedHash = messageHash.toEthSignedMessageHash();
         address signer = ECDSA.recover(ethSignedHash, signature);
@@ -108,15 +111,13 @@ contract BiddingHook is BaseACPHook {
     }
 
     /// @dev Block funding if budget hasn't been set to the committed bid amount.
-    function _preFund(uint256 jobId, address, bytes memory) internal override {
+    function _preFund(uint256 jobId, address, bytes memory) internal view override {
         Bidding storage b = biddings[jobId];
         if (b.committedAmount == 0) return; // no bidding for this job
         if (_core().getJob(jobId).budget != b.committedAmount) revert BudgetMismatch();
     }
 
-    // --- Helpers --------------------------------------------------------------
-
-    /// @dev Typed accessor for the core contract
+    // --- Helper --------------------------------------------------------------
     function _core() internal view returns (AgenticCommerce) {
         return AgenticCommerce(acpContract);
     }

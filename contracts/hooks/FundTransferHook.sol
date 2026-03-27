@@ -91,7 +91,7 @@ contract FundTransferHook is BaseACPHook {
     // -------------------------------------------------------------------------
 
     /// @dev Store transfer commitment from setBudget optParams.
-    function _preSetBudget(uint256 jobId, address, uint256, bytes memory optParams) internal override {
+    function _preSetBudget(uint256 jobId, address, address, uint256, bytes memory optParams) internal override {
         if (optParams.length == 0) return;
         (address buyer, uint256 transferAmount) = abi.decode(optParams, (address, uint256));
         if (buyer == address(0)) revert ZeroAddress();
@@ -104,11 +104,11 @@ contract FundTransferHook is BaseACPHook {
     }
 
     /// @dev Verify client has approved this hook for the committed transferAmount.
-    function _preFund(uint256 jobId, address, bytes memory) internal override {
+    function _preFund(uint256 jobId, address, bytes memory) internal view override {
         TransferCommitment memory c = commitments[jobId];
         if (c.buyer == address(0)) revert CommitmentNotSet();
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
-        uint256 allowance = token.allowance(job.client, address(this));
+        address client = _core().getJob(jobId).client;
+        uint256 allowance = token.allowance(client, address(this));
         if (allowance < c.transferAmount) revert InsufficientAllowance();
     }
 
@@ -124,9 +124,8 @@ contract FundTransferHook is BaseACPHook {
         TransferCommitment storage c = commitments[jobId];
         if (c.buyer == address(0)) revert CommitmentNotSet();
         if (c.providerDeposited) revert AlreadyDeposited();
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
         c.providerDeposited = true;
-        token.safeTransferFrom(job.provider, address(this), c.transferAmount);
+        token.safeTransferFrom(_core().getJob(jobId).provider, address(this), c.transferAmount);
     }
 
     /// @dev Release escrowed tokens to buyer after evaluator completes the job.
@@ -144,9 +143,8 @@ contract FundTransferHook is BaseACPHook {
             delete commitments[jobId];
             return;
         }
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
         delete commitments[jobId];
-        token.safeTransfer(job.provider, c.transferAmount);
+        token.safeTransfer(_core().getJob(jobId).provider, c.transferAmount);
     }
 
     // -------------------------------------------------------------------------
