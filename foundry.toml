@@ -4,11 +4,20 @@ test = "test"
 out = "out"
 cache_path = "cache"
 libs = ["lib"]
+evm_version = "cancun"
 
 # Solidity version
 solc_version = "0.8.33"
 optimizer = true
 optimizer_runs = 200
+
+# Remappings
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@acp/=contracts/acp/contracts/",
+    "forge-std/=lib/forge-std/src/",
+]
 
 # Testing
 verbosity = 3

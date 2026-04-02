@@ -140,7 +140,7 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         if (msg.sender != job.client) revert Unauthorized();
         if (job.provider != address(0)) revert WrongStatus(); // already set
         if (provider_ == address(0)) revert ZeroAddress();
-        bytes memory data = abi.encode(provider_, optParams);
+        bytes memory data = abi.encode(msg.sender, provider_, optParams);
         _beforeHook(job.hook, jobId, msg.sig, data);
         job.provider = provider_;
         emit ProviderSet(jobId, provider_);
@@ -152,7 +152,7 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         if (job.id == 0) revert InvalidJob();
         if (job.status != JobStatus.Open) revert WrongStatus();
         if (msg.sender != job.client && msg.sender != job.provider) revert Unauthorized();
-        bytes memory data = abi.encode(amount, optParams);
+        bytes memory data = abi.encode(msg.sender, amount, optParams);
         _beforeHook(job.hook, jobId, msg.sig, data);
         job.budget = amount;
         emit BudgetSet(jobId, amount);
@@ -167,11 +167,12 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         if (job.provider == address(0)) revert ProviderNotSet();
         if (job.budget == 0) revert ZeroBudget();
         if (job.budget != expectedBudget) revert BudgetMismatch();
-        _beforeHook(job.hook, jobId, msg.sig, optParams);
+        bytes memory fundData = abi.encode(msg.sender, optParams);
+        _beforeHook(job.hook, jobId, msg.sig, fundData);
         job.status = JobStatus.Funded;
         paymentToken.safeTransferFrom(job.client, address(this), job.budget);
         emit JobFunded(jobId, job.client, job.budget);
-        _afterHook(job.hook, jobId, msg.sig, optParams);
+        _afterHook(job.hook, jobId, msg.sig, fundData);
     }
 
     /// @dev Provider submits work, moving the job from Funded to Submitted.
@@ -180,7 +181,7 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         if (job.id == 0) revert InvalidJob();
         if (job.status != JobStatus.Funded) revert WrongStatus();
         if (msg.sender != job.provider) revert Unauthorized();
-        bytes memory data = abi.encode(deliverable, optParams);
+        bytes memory data = abi.encode(msg.sender, deliverable, optParams);
         _beforeHook(job.hook, jobId, msg.sig, data);
         job.status = JobStatus.Submitted;
         emit JobSubmitted(jobId, msg.sender, deliverable);
@@ -192,7 +193,7 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         if (job.id == 0) revert InvalidJob();
         if (job.status != JobStatus.Submitted) revert WrongStatus();
         if (msg.sender != job.evaluator) revert Unauthorized();
-        bytes memory data = abi.encode(reason, optParams);
+        bytes memory data = abi.encode(msg.sender, reason, optParams);
         _beforeHook(job.hook, jobId, msg.sig, data);
         job.status = JobStatus.Completed;
         uint256 amount = job.budget;
@@ -220,7 +221,7 @@ contract AgenticCommerceHooked is AccessControl, ReentrancyGuard {
         } else {
             revert WrongStatus();
         }
-        bytes memory data = abi.encode(reason, optParams);
+        bytes memory data = abi.encode(msg.sender, reason, optParams);
         _beforeHook(job.hook, jobId, msg.sig, data);
         JobStatus prev = job.status;
         job.status = JobStatus.Rejected;
