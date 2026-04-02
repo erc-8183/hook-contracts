@@ -13,6 +13,7 @@
 | **[AgenticCommerceHooked.sol](./contracts/AgenticCommerceHooked.sol)** | Hookable variant of the core protocol. Same lifecycle with an optional `hook` address per job and `optParams` on all hookable functions. `claimRefund` is deliberately not hookable. |
 | **[IACPHook.sol](./contracts/IACPHook.sol)** | Interface all hooks must implement: `beforeAction` and `afterAction`. |
 | **[BaseACPHook.sol](./contracts/BaseACPHook.sol)** | Abstract base that routes `beforeAction`/`afterAction` to named virtual functions (`_preFund`, `_postComplete`, etc.). Inherit this and override only what you need. |
+| **[IMultiPartyCoordination.sol](./contracts/interfaces/IMultiPartyCoordination.sol)** | Generic interface for multi-party coordination frameworks (ERC-8001, ERC-8004, custom). |
 
 ## Hook Examples
 
@@ -20,11 +21,48 @@
 |----------|---------|-------------|
 | [BiddingHook.sol](./contracts/hooks/BiddingHook.sol) | A — Simple Policy | Off-chain signed bidding for provider selection. Providers sign bid commitments; the hook verifies the winning signature on-chain via `setProvider`. Zero direct external calls — everything flows through core → hook callbacks. |
 | [FundTransferHook.sol](./contracts/hooks/FundTransferHook.sol) | B — Advanced Escrow | Two-phase fund transfer for token conversion/bridging jobs. Client capital flows to provider at `fund`; provider deposits output tokens at `submit`; buyer receives them at `complete`. |
+| [ERC8001CoordinationHook.sol](./contracts/hooks/ERC8001CoordinationHook.sol) | B — Advanced Escrow | Multi-party coordination for job completion/rejection using ERC-8001. Requires cryptographic consensus from all participants before `complete` or `reject` can execute. Perfect for high-value jobs where unilateral decisions are risky. |
+| [MultiProviderHook.sol](./contracts/hooks/MultiProviderHook.sol) | B — Advanced Escrow | Multi-provider job management with automatic payment distribution. Supports jobs requiring multiple providers working together (e.g., 5 reviewers, 3 validators). Distributes payments to all providers upon job completion via ERC-8004 provider registry. Can be combined with ERC-8001 coordination for consensus + payment distribution. |
 
 ## Building a Hook
 
 1. Inherit `BaseACPHook` and override only the callbacks you need.
 2. See [CONTRIBUTING.md](./CONTRIBUTING.md) for full guidelines.
+
+## Testing
+
+This project uses [Foundry](https://book.getfoundry.sh/) for testing.
+
+### Setup
+
+```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Install dependencies
+forge install
+```
+
+### Run Tests
+
+```bash
+# Run all tests
+forge test
+
+# Run with verbose output
+forge test -vvv
+
+# Run specific test file
+forge test --match-path test/ERC8001.t.sol
+forge test --match-path test/ERC8001CoordinationHook.t.sol
+forge test --match-path test/MultiProviderHook.t.sol
+
+# Generate coverage report
+forge coverage
+```
+
+See [test/README.md](./test/README.md) for detailed test documentation.
 
 ## Contributing
 

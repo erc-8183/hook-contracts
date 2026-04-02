@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "../BaseACPHook.sol";
-import "@acp/AgenticCommerce.sol";
+import "../AgenticCommerceHooked.sol";
 
 /**
  * @title BiddingHook
@@ -117,7 +117,7 @@ contract BiddingHook is BaseACPHook {
     // --- Helpers --------------------------------------------------------------
 
     /// @dev Typed accessor for the core contract
-    function _core() internal view returns (AgenticCommerce) {
-        return AgenticCommerce(acpContract);
+    function _core() internal view returns (AgenticCommerceHooked) {
+        return AgenticCommerceHooked(acpContract);
     }
 }

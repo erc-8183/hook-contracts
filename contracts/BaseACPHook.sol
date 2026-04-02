@@ -17,6 +17,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *      AgenticCommerce supports operators, so the actual caller matters.
  *
  *      Data encoding per selector (as produced by AgenticCommerce):
+ *        setProvider : abi.encode(caller, provider, optParams)
  *        setBudget   : abi.encode(caller, amount, optParams)
  *        fund        : abi.encode(caller, optParams)
  *        submit      : abi.encode(caller, deliverable, optParams)
@@ -54,7 +55,8 @@ abstract contract BaseACPHook is ERC165, IACPHook {
     }
 
     // --- Selector constants (avoid repeated keccak at runtime) ----------------
-    // These match AgenticCommerce function selectors.
+    // These match AgenticCommerceHooked function selectors.
+    bytes4 private constant SEL_SET_PROVIDER = bytes4(keccak256("setProvider(uint256,address,bytes)"));
     bytes4 private constant SEL_SET_BUDGET =
         bytes4(keccak256("setBudget(uint256,uint256,bytes)"));
     bytes4 private constant SEL_FUND =

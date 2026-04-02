@@ -129,6 +129,90 @@ A two‑phase hook can:
 - On rejection/expiry, provider can recover their tokens from the hook.
 - If the hook misbehaves, the job may not progress before expiry; this is an accepted trade‑off for advanced flows.
 
+### Example: Multi-party coordination via generic interface
+
+**Use case:** High-value jobs requiring multiple parties (client, provider, evaluator, optional arbiters) to cryptographically agree before the job can be completed or rejected. Uses a generic `IMultiPartyCoordination` interface for framework-agnostic coordination.
+
+**Supported frameworks:**
+- **ERC-8001** — Agent Coordination Framework with EIP-712 attestations
+- **ERC-8004** — Trustless Agents coordination extension (stub/reference)
+- **Custom implementations** — Any contract implementing `IMultiPartyCoordination`
+
+A coordination hook can:
+
+1. **createJob** — job created with `hook = ERC8001CoordinationHook`.
+2. **submit** — provider submits work, job moves to Submitted state.
+3. **proposeCoordination** — any party proposes coordination for complete or reject:
+   - Creates coordination intent via `IMultiPartyCoordination.proposeCoordination()`.
+   - Stores intentHash in hook state.
+   - Emits CoordinationProposed.
+4. **acceptCoordination** — each participant accepts via attestation:
+   - Delegates to coordination framework via `IMultiPartyCoordination.acceptCoordination()`.
+   - Records acceptance on-chain.
+   - Emits CoordinationAccepted.
+5. **executeCoordination** — once all accept, anyone executes:
+   - Marks coordination as Ready via `IMultiPartyCoordination.executeCoordination()`.
+   - Emits CoordinationExecuted.
+6. **complete** or **reject** — evaluator calls action:
+   - `_preComplete` or `_preReject` checks coordination is Ready via `IMultiPartyCoordination.getCoordinationStatus()`.
+   - If not Ready, reverts with CoordinationNotReady.
+   - Core contract executes the action.
+7. **cancelCoordination** — if coordination needs cancellation:
+   - Proposer can cancel before expiry via `IMultiPartyCoordination.cancelCoordination()`.
+   - Anyone can cancel after expiry.
+
+**Properties:**
+
+- **Framework-agnostic** — Works with ERC-8001, ERC-8004, or custom coordination implementations.
+- **Pluggable architecture** — Hook depends on `IMultiPartyCoordination` interface, not concrete implementations.
+- **Backward compatible** — Still supports ERC-8001 encoding for existing integrations.
+- **Future-proof** — New coordination standards can be adopted without hook modifications.
+- **Supports ECDSA (65-byte and 64-byte) and ERC-1271 signatures** (via underlying framework).
+- **Optional per-job** (not all jobs require coordination).
+- **Gas-efficient** — Minimal state in hook, complex logic in external coordination contract.
+- **claimRefund remains unhookable** as safety mechanism.
+
+---
+
+### Example: Multi-provider jobs with payment distribution
+
+**Use case:** Jobs requiring multiple providers working together (e.g., 5 reviewers, 3 validators) with automatic payment distribution upon completion. Distinct from multi-party consensus — this is about multiple contributors to a single job.
+
+A multi-provider hook can:
+
+1. **createJob** — job created with `hook = MultiProviderHook`.
+2. **addProvider** — client adds providers via hook:
+   - Calls `IMultiPartyCoordination.addProvider()` on ERC-8004 registry.
+   - Only callable by job client.
+   - Only before funding.
+   - Emits ProviderAdded.
+3. **removeProvider** — client can remove providers:
+   - Calls `IMultiPartyCoordination.removeProvider()`.
+   - Cannot remove the last provider.
+   - Only before funding.
+   - Emits ProviderRemoved.
+4. **fund** — client funds job:
+   - `_preFund` validates provider set is non-empty.
+   - `_postFund` records funding and budget.
+5. **submit** — work submitted.
+6. **complete** — evaluator completes job:
+   - Core contract releases payment to hook.
+   - `_postComplete` distributes payments to all providers.
+   - Calculates equal shares (or custom distribution).
+   - Transfers tokens to each provider.
+   - Emits PaymentDistributed.
+
+**Properties:**
+
+- **Multiple providers** — Supports 1-20 providers per job.
+- **Automatic distribution** — Equal or custom payment splits upon completion.
+- **Client-controlled** — Only job client can manage providers.
+- **Timing restrictions** — Providers can only be modified before funding.
+- **SafeERC20** — Secure token transfers.
+- **Can be combined with ERC-8001** — Use MultiProviderHook for payment distribution + ERC8001CoordinationHook for consensus.
+- **Gas protection** — Maximum provider limit prevents DoS.
+- **No unilateral changes** — Providers locked after funding.
+
 ---
 
 ## Profile C — Experimental / Custom Hooks

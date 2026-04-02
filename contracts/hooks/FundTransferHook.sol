@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../BaseACPHook.sol";
-import "@acp/AgenticCommerce.sol";
+import "../AgenticCommerceHooked.sol";
 
 /**
  * @title FundTransferHook
@@ -82,8 +82,8 @@ contract FundTransferHook is BaseACPHook {
     }
 
     /// @dev Typed accessor for the core contract
-    function _core() internal view returns (AgenticCommerce) {
-        return AgenticCommerce(acpContract);
+    function _core() internal view returns (AgenticCommerceHooked) {
+        return AgenticCommerceHooked(acpContract);
     }
 
     // -------------------------------------------------------------------------
@@ -96,18 +96,15 @@ contract FundTransferHook is BaseACPHook {
         (address buyer, uint256 transferAmount) = abi.decode(optParams, (address, uint256));
         if (buyer == address(0)) revert ZeroAddress();
         if (transferAmount == 0) revert ZeroAmount();
-        commitments[jobId] = TransferCommitment({
-            buyer: buyer,
-            transferAmount: transferAmount,
-            providerDeposited: false
-        });
+        commitments[jobId] =
+            TransferCommitment({buyer: buyer, transferAmount: transferAmount, providerDeposited: false});
     }
 
     /// @dev Verify client has approved this hook for the committed transferAmount.
     function _preFund(uint256 jobId, address, bytes memory) internal override {
         TransferCommitment memory c = commitments[jobId];
         if (c.buyer == address(0)) revert CommitmentNotSet();
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
+        AgenticCommerceHooked.Job memory job = _core().getJob(jobId);
         uint256 allowance = token.allowance(job.client, address(this));
         if (allowance < c.transferAmount) revert InsufficientAllowance();
     }
@@ -115,7 +112,7 @@ contract FundTransferHook is BaseACPHook {
     /// @dev Pull transferAmount from client and forward to provider (capital).
     function _postFund(uint256 jobId, address, bytes memory) internal override {
         TransferCommitment memory c = commitments[jobId];
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
+        AgenticCommerceHooked.Job memory job = _core().getJob(jobId);
         token.safeTransferFrom(job.client, job.provider, c.transferAmount);
     }
 
@@ -124,7 +121,7 @@ contract FundTransferHook is BaseACPHook {
         TransferCommitment storage c = commitments[jobId];
         if (c.buyer == address(0)) revert CommitmentNotSet();
         if (c.providerDeposited) revert AlreadyDeposited();
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
+        AgenticCommerceHooked.Job memory job = _core().getJob(jobId);
         c.providerDeposited = true;
         token.safeTransferFrom(job.provider, address(this), c.transferAmount);
     }
@@ -144,7 +141,7 @@ contract FundTransferHook is BaseACPHook {
             delete commitments[jobId];
             return;
         }
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
+        AgenticCommerceHooked.Job memory job = _core().getJob(jobId);
         delete commitments[jobId];
         token.safeTransfer(job.provider, c.transferAmount);
     }
@@ -158,8 +155,8 @@ contract FundTransferHook is BaseACPHook {
     function recoverTokens(uint256 jobId) external {
         TransferCommitment memory c = commitments[jobId];
         if (!c.providerDeposited) revert NothingToRecover();
-        AgenticCommerce.Job memory job = _core().getJob(jobId);
-        if (job.status != AgenticCommerce.JobStatus.Expired) revert JobNotExpired();
+        AgenticCommerceHooked.Job memory job = _core().getJob(jobId);
+        if (job.status != AgenticCommerceHooked.JobStatus.Expired) revert JobNotExpired();
         delete commitments[jobId];
         token.safeTransfer(job.provider, c.transferAmount);
     }
@@ -168,7 +165,11 @@ contract FundTransferHook is BaseACPHook {
     // View
     // -------------------------------------------------------------------------
 
-    function getCommitment(uint256 jobId) external view returns (address buyer, uint256 transferAmount, bool providerDeposited) {
+    function getCommitment(uint256 jobId)
+        external
+        view
+        returns (address buyer, uint256 transferAmount, bool providerDeposited)
+    {
         TransferCommitment memory c = commitments[jobId];
         return (c.buyer, c.transferAmount, c.providerDeposited);
     }
