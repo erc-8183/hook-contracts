@@ -6,6 +6,7 @@ import "../interfaces/IMultiPartyCoordination.sol";
 import "../erc8001/interfaces/IERC8001.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@acp/AgenticCommerce.sol";
 
 /**
  * @title CombinedMultiProviderCoordinationHook
@@ -391,12 +392,12 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
     /**
      * @dev Called before fund(). Validates provider set and stores expected budget.
      * @param jobId The job ID
-     * @param expectedBudget The expected budget amount
+     * @param caller The address initiating the fund call
      * @param optParams Optional parameters
      */
-    function _preFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
-        (optParams);
-        tempBudget[jobId] = expectedBudget;
+    function _preFund(uint256 jobId, address caller, bytes memory optParams) internal override {
+        (caller, optParams);
+        tempBudget[jobId] = AgenticCommerce(acpContract).getJob(jobId).budget;
 
         bytes32 jobIdBytes = bytes32(jobId);
 
@@ -411,24 +412,25 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
     /**
      * @dev Called after fund(). Records funding and budget.
      * @param jobId The job ID
-     * @param expectedBudget The expected budget amount
+     * @param caller The address initiating the fund call
      * @param optParams Optional parameters
      */
-    function _postFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
-        (optParams);
+    function _postFund(uint256 jobId, address caller, bytes memory optParams) internal override {
+        (caller, optParams);
         jobFunded[jobId] = true;
-        jobBudget[jobId] = tempBudget[jobId] > 0 ? tempBudget[jobId] : expectedBudget;
+        jobBudget[jobId] = tempBudget[jobId];
         delete tempBudget[jobId];
     }
 
     /**
      * @dev Called before complete(). Verifies coordination is Ready.
      * @param jobId The job ID
+     * @param caller The address initiating the complete call
      * @param reason Completion reason
      * @param optParams Optional parameters
      */
-    function _preComplete(uint256 jobId, bytes32 reason, bytes memory optParams) internal override {
-        (reason, optParams);
+    function _preComplete(uint256 jobId, address caller, bytes32 reason, bytes memory optParams) internal override {
+        (caller, reason, optParams);
         CoordinationInfo storage info = coordinations[jobId];
 
         if (!info.isActive) return; // No coordination required
@@ -444,11 +446,12 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
     /**
      * @dev Called after complete(). Distributes payment to providers.
      * @param jobId The job ID
+     * @param caller The address initiating the complete call
      * @param reason Completion reason
      * @param optParams Optional parameters
      */
-    function _postComplete(uint256 jobId, bytes32 reason, bytes memory optParams) internal override {
-        (reason, optParams);
+    function _postComplete(uint256 jobId, address caller, bytes32 reason, bytes memory optParams) internal override {
+        (caller, reason, optParams);
         uint256 budget = jobBudget[jobId];
         if (budget == 0) return;
 
@@ -497,11 +500,12 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
     /**
      * @dev Called before reject(). Verifies coordination is Ready for rejection.
      * @param jobId The job ID
+     * @param caller The address initiating the reject call
      * @param reason Rejection reason
      * @param optParams Optional parameters
      */
-    function _preReject(uint256 jobId, bytes32 reason, bytes memory optParams) internal override {
-        (reason, optParams);
+    function _preReject(uint256 jobId, address caller, bytes32 reason, bytes memory optParams) internal override {
+        (caller, reason, optParams);
         CoordinationInfo storage info = coordinations[jobId];
 
         if (!info.isActive) return;

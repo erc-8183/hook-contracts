@@ -5,6 +5,7 @@ import "../BaseACPHook.sol";
 import "../interfaces/IMultiPartyCoordination.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@acp/AgenticCommerce.sol";
 
 /**
  * @title MultiProviderHook
@@ -214,12 +215,11 @@ contract MultiProviderHook is BaseACPHook {
     /**
      * @dev Called before fund(). Validates provider set and stores expected budget.
      * @param jobId The job ID
-     * @param expectedBudget The expected budget amount
-     * @param optParams Optional parameters
      */
-    function _preFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
+    function _preFund(uint256 jobId, address caller, bytes memory optParams) internal override {
+        (caller, optParams);
         // Store budget for later distribution
-        tempBudget[jobId] = expectedBudget;
+        tempBudget[jobId] = AgenticCommerce(acpContract).getJob(jobId).budget;
 
         // Validate provider set
         bytes32 jobIdBytes = bytes32(jobId);
@@ -235,15 +235,14 @@ contract MultiProviderHook is BaseACPHook {
     /**
      * @dev Called after fund(). Records funding and budget.
      * @param jobId The job ID
-     * @param expectedBudget The expected budget amount
-     * @param optParams Optional parameters
      */
-    function _postFund(uint256 jobId, uint256 expectedBudget, bytes memory optParams) internal override {
+    function _postFund(uint256 jobId, address caller, bytes memory optParams) internal override {
+        (caller, optParams);
         // Mark as funded
         jobFunded[jobId] = true;
 
-        // Use the budget we saved in _preFund (or expectedBudget)
-        jobBudget[jobId] = tempBudget[jobId] > 0 ? tempBudget[jobId] : expectedBudget;
+        // Use the budget we saved in _preFund
+        jobBudget[jobId] = tempBudget[jobId];
 
         // Clear temp storage
         delete tempBudget[jobId];
@@ -252,10 +251,8 @@ contract MultiProviderHook is BaseACPHook {
     /**
      * @dev Called after complete(). Distributes payment to providers.
      * @param jobId The job ID
-     * @param reason Completion reason
-     * @param optParams Optional parameters
      */
-    function _postComplete(uint256 jobId, bytes32 reason, bytes memory optParams) internal override {
+    function _postComplete(uint256 jobId, address, bytes32, bytes memory) internal override {
         // Get budget for this job
         uint256 budget = jobBudget[jobId];
         if (budget == 0) return; // Nothing to distribute

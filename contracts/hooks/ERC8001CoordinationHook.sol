@@ -145,8 +145,8 @@ contract ERC8001CoordinationHook is BaseACPHook {
      */
     function _preComplete(
         uint256 jobId,
-        bytes32,
-        /* reason */
+        address, /* caller */
+        bytes32, /* reason */
         bytes memory /* optParams */
     )
         internal
@@ -177,8 +177,8 @@ contract ERC8001CoordinationHook is BaseACPHook {
      */
     function _preReject(
         uint256 jobId,
-        bytes32,
-        /* reason */
+        address, /* caller */
+        bytes32, /* reason */
         bytes memory /* optParams */
     )
         internal
