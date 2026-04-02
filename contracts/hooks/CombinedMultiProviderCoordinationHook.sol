@@ -6,7 +6,7 @@ import "../interfaces/IMultiPartyCoordination.sol";
 import "../erc8001/interfaces/IERC8001.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@acp/AgenticCommerce.sol";
+import "../AgenticCommerceHooked.sol";
 
 /**
  * @title CombinedMultiProviderCoordinationHook
@@ -292,18 +292,12 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
         if (actionType == ActionType.None) revert InvalidActionType();
 
         // Only client or original provider can propose
-        (bool ok, bytes memory data) = acpContract.staticcall(abi.encodeWithSignature("getJob(uint256)", jobId));
-        if (!ok) revert RegistryCallFailed();
+        AgenticCommerceHooked.Job memory job = AgenticCommerceHooked(acpContract).getJob(jobId);
 
-        (, address client, address provider,,,,,,) =
-            abi.decode(data, (uint256, address, address, address, address, string, uint256, uint256, uint8));
+        if (msg.sender != job.client && msg.sender != job.provider) revert OnlyClientOrProvider();
 
-        if (msg.sender != client && msg.sender != provider) revert OnlyClientOrProvider();
-
-        // Check job is in Submitted state (status 2)
-        (,,,,,,,, uint8 status) =
-            abi.decode(data, (uint256, address, address, address, address, string, uint256, uint256, uint8));
-        if (status != 2) revert JobNotInSubmittedState();
+        // Check job is in Submitted state
+        if (uint8(job.status) != 2) revert JobNotInSubmittedState();
 
         // Check no existing coordination
         if (coordinations[jobId].isActive) revert CoordinationAlreadyExists();
@@ -397,7 +391,7 @@ contract CombinedMultiProviderCoordinationHook is BaseACPHook {
      */
     function _preFund(uint256 jobId, address caller, bytes memory optParams) internal override {
         (caller, optParams);
-        tempBudget[jobId] = AgenticCommerce(acpContract).getJob(jobId).budget;
+        tempBudget[jobId] = AgenticCommerceHooked(acpContract).getJob(jobId).budget;
 
         bytes32 jobIdBytes = bytes32(jobId);
 

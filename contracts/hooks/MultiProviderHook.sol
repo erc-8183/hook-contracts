@@ -5,7 +5,7 @@ import "../BaseACPHook.sol";
 import "../interfaces/IMultiPartyCoordination.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@acp/AgenticCommerce.sol";
+import "../AgenticCommerceHooked.sol";
 
 /**
  * @title MultiProviderHook
@@ -219,7 +219,7 @@ contract MultiProviderHook is BaseACPHook {
     function _preFund(uint256 jobId, address caller, bytes memory optParams) internal override {
         (caller, optParams);
         // Store budget for later distribution
-        tempBudget[jobId] = AgenticCommerce(acpContract).getJob(jobId).budget;
+        tempBudget[jobId] = AgenticCommerceHooked(acpContract).getJob(jobId).budget;
 
         // Validate provider set
         bytes32 jobIdBytes = bytes32(jobId);
