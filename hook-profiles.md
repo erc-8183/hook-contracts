@@ -154,3 +154,11 @@ A two‑phase hook can:
     - a pure policy hook (Profile A), or
     - an advanced escrow/settlement hook (Profile B) with clearly defined token flows.
 
+### Example: Single-stage underwriter-gated completion
+
+- Example implementation: `contracts/hooks/UnderwritingHook.sol`
+- Uses the normal ACP lifecycle for a single job and does not introduce parent/close linkage or custom settlement rails.
+- Locks an underwriting commit at `setBudget(...)`, including the underwriter, validity window, and expected evidence hashes.
+- Moves the job into a protected hook state after funding, then checks submit-time evidence against the committed `bundleHash`, `policyHash`, `quoteIdHash`, and `termsHash`.
+- Requires a registered underwriter to sign either `CompleteDecision` or `RejectDecision`, relayed through `UnderwritingEvaluator.sol`, before ACP finalizes the submitted job.
+- Treat this as experimental because it adds workflow-specific off-chain underwriting policy on top of ACP, even though the on-chain shape is still a single-stage hook.
