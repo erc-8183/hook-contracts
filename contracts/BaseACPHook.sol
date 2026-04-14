@@ -17,7 +17,7 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *      AgenticCommerce supports operators, so the actual caller matters.
  *
  *      Data encoding per selector (as produced by AgenticCommerce):
- *        setBudget   : abi.encode(caller, amount, optParams)
+ *        setBudget   : abi.encode(caller, token, amount, optParams)
  *        fund        : abi.encode(caller, optParams)
  *        submit      : abi.encode(caller, deliverable, optParams)
  *        complete    : abi.encode(caller, reason, optParams)
@@ -56,7 +56,7 @@ abstract contract BaseACPHook is ERC165, IACPHook {
     // --- Selector constants (avoid repeated keccak at runtime) ----------------
     // These match AgenticCommerce function selectors.
     bytes4 private constant SEL_SET_BUDGET =
-        bytes4(keccak256("setBudget(uint256,uint256,bytes)"));
+        bytes4(keccak256("setBudget(uint256,address,uint256,bytes)"));
     bytes4 private constant SEL_FUND =
         bytes4(keccak256("fund(uint256,uint256,bytes)"));
     bytes4 private constant SEL_SUBMIT =
@@ -74,9 +74,9 @@ abstract contract BaseACPHook is ERC165, IACPHook {
         bytes calldata data
     ) external override onlyACP {
         if (selector == SEL_SET_BUDGET) {
-            (address caller, uint256 amount, bytes memory optParams) = abi
-                .decode(data, (address, uint256, bytes));
-            _preSetBudget(jobId, caller, amount, optParams);
+            (address caller, address token, uint256 amount, bytes memory optParams) = abi
+                .decode(data, (address, address, uint256, bytes));
+            _preSetBudget(jobId, caller, token, amount, optParams);
         } else if (selector == SEL_FUND) {
             (address caller, bytes memory optParams) = abi.decode(
                 data,
@@ -104,9 +104,9 @@ abstract contract BaseACPHook is ERC165, IACPHook {
         bytes calldata data
     ) external override onlyACP {
         if (selector == SEL_SET_BUDGET) {
-            (address caller, uint256 amount, bytes memory optParams) = abi
-                .decode(data, (address, uint256, bytes));
-            _postSetBudget(jobId, caller, amount, optParams);
+            (address caller, address token, uint256 amount, bytes memory optParams) = abi
+                .decode(data, (address, address, uint256, bytes));
+            _postSetBudget(jobId, caller, token, amount, optParams);
         } else if (selector == SEL_FUND) {
             (address caller, bytes memory optParams) = abi.decode(
                 data,
@@ -133,12 +133,14 @@ abstract contract BaseACPHook is ERC165, IACPHook {
     function _preSetBudget(
         uint256 jobId,
         address caller,
+        address token,
         uint256 amount,
         bytes memory optParams
     ) internal virtual {}
     function _postSetBudget(
         uint256 jobId,
         address caller,
+        address token,
         uint256 amount,
         bytes memory optParams
     ) internal virtual {}
