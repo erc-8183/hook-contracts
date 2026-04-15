@@ -91,7 +91,7 @@ contract FundTransferHook is BaseACPHook {
     // -------------------------------------------------------------------------
 
     /// @dev Store transfer commitment from setBudget optParams.
-    function _preSetBudget(uint256 jobId, address, uint256, bytes memory optParams) internal override {
+    function _preSetBudget(uint256 jobId, address, address, uint256, bytes memory optParams) internal override {
         if (optParams.length == 0) return;
         (address buyer, uint256 transferAmount) = abi.decode(optParams, (address, uint256));
         if (buyer == address(0)) revert ZeroAddress();

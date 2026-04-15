@@ -1,4 +1,7 @@
 {
+  "contracts/acp": {
+    "rev": "d35d995094dbb095f09aef16ccdc1152a94f95d3"
+  },
   "contracts/vendor/base-contracts": {
     "rev": "d35d995094dbb095f09aef16ccdc1152a94f95d3"
   },

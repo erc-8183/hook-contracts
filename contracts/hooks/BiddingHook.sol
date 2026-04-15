@@ -73,7 +73,7 @@ contract BiddingHook is BaseACPHook {
     ///  2. deadline > 0 && committedAmount == 0: bid verification, decode
     ///     signature from optParams, verify against provider.
     ///  3. committedAmount > 0: enforce budget == committedAmount.
-    function _preSetBudget(uint256 jobId, address, uint256 amount, bytes memory optParams) internal override {
+    function _preSetBudget(uint256 jobId, address, address, uint256 amount, bytes memory optParams) internal override {
         Bidding storage b = biddings[jobId];
 
         // Mode 3: enforce budget matches the winning bid
