@@ -30,9 +30,10 @@ import "../interfaces/IWalletStateVerifier.sol";
 ///   Agents (wallet-based, no email):
 ///     POST https://api.insumermodel.com/v1/keys/buy
 ///     body: {"txHash":"0x...","chainId":8453,"amount":5,"appName":"my-agent"}
-///     Agent sends USDC (Base/Optimism/Arbitrum/Polygon/Solana) or BTC to the
-///     platform wallet, then POSTs the tx hash — the sending wallet is the
-///     identity, no email needed. Minimum 5 USDC; credits scale with amount.
+///     Agent sends USDC or USDT (Base/Optimism/Arbitrum/Polygon/Solana and more)
+///     or BTC to the platform wallet, then POSTs the tx hash — the sending
+///     wallet is the identity, no email needed. Stablecoin is auto-detected from
+///     the transfer log. Minimum 5 stablecoin units; credits scale with amount.
 ///
 ///   API reference:      https://insumermodel.com/developers/api-reference/
 ///   Attestation:        POST https://api.insumermodel.com/v1/attest
