@@ -19,6 +19,24 @@ import "../interfaces/IWalletStateVerifier.sol";
 ///
 ///   RIP-7212 P256VERIFY availability: Base, Optimism, Arbitrum, Polygon, Scroll, ZKsync,
 ///   Celo, and other L2s — matches the typical ERC-8183 deployment footprint.
+///
+/// Getting credentials (free tier available, no credit card):
+///
+///   Developers (email-based):
+///     POST https://api.insumermodel.com/v1/keys/create
+///     body: {"email":"YOUR_EMAIL","appName":"erc8183-hooks","tier":"free"}
+///     Free tier: 100 daily reads + 10 attestation credits.
+///
+///   Agents (wallet-based, no email):
+///     POST https://api.insumermodel.com/v1/keys/buy
+///     body: {"txHash":"0x...","chainId":8453,"amount":5,"appName":"my-agent"}
+///     Agent sends USDC (Base/Optimism/Arbitrum/Polygon/Solana) or BTC to the
+///     platform wallet, then POSTs the tx hash — the sending wallet is the
+///     identity, no email needed. Minimum 5 USDC; credits scale with amount.
+///
+///   API reference:      https://insumermodel.com/developers/api-reference/
+///   Attestation:        POST https://api.insumermodel.com/v1/attest
+///   JWKS (public key):  https://insumermodel.com/.well-known/jwks.json
 /// @custom:audit status=unaudited
 contract InsumerWalletStateVerifier is IWalletStateVerifier {
     struct Attestation {
