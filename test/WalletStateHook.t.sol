@@ -4,9 +4,7 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
 import {IERC8183HookMetadata} from "../contracts/interfaces/IERC8183HookMetadata.sol";
-import {IWalletStateVerifier} from "../contracts/interfaces/IWalletStateVerifier.sol";
-import {WalletStateHook} from "../contracts/hooks/WalletStateHook.sol";
-import {InsumerWalletStateVerifier} from "../contracts/examples/InsumerWalletStateVerifier.sol";
+import {WalletStateHook, IWalletStateVerifier} from "../contracts/hooks/WalletStateHook.sol";
 
 contract MockWalletStateVerifier is IWalletStateVerifier {
     mapping(address => mapping(bytes32 => bool)) private _verified;
@@ -163,106 +161,5 @@ contract WalletStateHookTest is Test {
         assertEq(address(hook.verifier()), address(mockVerifier));
         assertEq(hook.conditionsHash(), CONDITIONS_HASH);
         assertEq(hook.erc8183Contract(), address(mockCore));
-    }
-}
-
-contract InsumerWalletStateVerifierTest is Test {
-    InsumerWalletStateVerifier verifier;
-
-    address relayer;
-    address notRelayer;
-    address wallet = address(0xCAFE);
-    bytes32 conditionsHash = keccak256("test-conditions");
-
-    function setUp() public {
-        relayer = makeAddr("relayer");
-        notRelayer = makeAddr("notRelayer");
-        verifier = new InsumerWalletStateVerifier(relayer, 0, 0);
-    }
-
-    function test_Constructor_RevertsOnZeroRelayer() public {
-        vm.expectRevert(InsumerWalletStateVerifier.ZeroAddress.selector);
-        new InsumerWalletStateVerifier(address(0), 0, 0);
-    }
-
-    function test_Constructor_VerifySignaturesFlag() public {
-        InsumerWalletStateVerifier noVerify = new InsumerWalletStateVerifier(relayer, 0, 0);
-        assertFalse(noVerify.verifySignatures());
-
-        InsumerWalletStateVerifier withVerify = new InsumerWalletStateVerifier(
-            relayer,
-            uint256(0x1234),
-            uint256(0x5678)
-        );
-        assertTrue(withVerify.verifySignatures());
-    }
-
-    function test_CheckWalletState_NotSubmitted() public view {
-        (bool ok, uint256 validUntil) = verifier.checkWalletState(wallet, conditionsHash);
-        assertFalse(ok);
-        assertEq(validUntil, 0);
-    }
-
-    function test_SubmitAttestation_HappyPath() public {
-        uint256 expiry = block.timestamp + 1800;
-        vm.prank(relayer);
-        verifier.submitAttestation(
-            wallet,
-            conditionsHash,
-            true,
-            expiry,
-            bytes32(0),
-            bytes32(0),
-            bytes32(0)
-        );
-        (bool ok, uint256 validUntil) = verifier.checkWalletState(wallet, conditionsHash);
-        assertTrue(ok);
-        assertEq(validUntil, expiry);
-    }
-
-    function test_SubmitAttestation_RevertsOnNonRelayer() public {
-        vm.prank(notRelayer);
-        vm.expectRevert(InsumerWalletStateVerifier.NotRelayer.selector);
-        verifier.submitAttestation(
-            wallet,
-            conditionsHash,
-            true,
-            block.timestamp + 1800,
-            bytes32(0),
-            bytes32(0),
-            bytes32(0)
-        );
-    }
-
-    function test_SubmitAttestation_FailedResultStored() public {
-        vm.prank(relayer);
-        verifier.submitAttestation(
-            wallet,
-            conditionsHash,
-            false,
-            block.timestamp + 1800,
-            bytes32(0),
-            bytes32(0),
-            bytes32(0)
-        );
-        (bool ok, ) = verifier.checkWalletState(wallet, conditionsHash);
-        assertFalse(ok);
-    }
-
-    function test_SetRelayer_OnlyOwner() public {
-        address newRelayer = makeAddr("newRelayer");
-        verifier.setRelayer(newRelayer);
-        assertEq(verifier.relayer(), newRelayer);
-    }
-
-    function test_SetRelayer_RevertsOnNonOwner() public {
-        vm.prank(notRelayer);
-        vm.expectRevert(InsumerWalletStateVerifier.NotOwner.selector);
-        verifier.setRelayer(makeAddr("other"));
-    }
-
-    function test_SetRelayer_RevertsOnZeroAddress() public {
-        vm.expectRevert(InsumerWalletStateVerifier.ZeroAddress.selector);
-        verifier.setRelayer(address(0));
     }
 }

@@ -3,7 +3,22 @@ pragma solidity ^0.8.20;
 
 import "../BaseERC8183Hook.sol";
 import "../interfaces/IERC8183HookMetadata.sol";
-import "../interfaces/IWalletStateVerifier.sol";
+
+/// @title IWalletStateVerifier
+/// @notice Minimal interface for on-chain wallet-state verification.
+/// @dev Returns a (verified, validUntil) pair for a given (wallet, conditionsHash)
+///      so hooks can remain stateless views.
+interface IWalletStateVerifier {
+    /// @notice Check whether a wallet has a verified attestation matching the condition set.
+    /// @param wallet The wallet address being checked (e.g. job.client at _preFund time).
+    /// @param conditionsHash Hash identifying the required condition set.
+    /// @return verified True if an attestation record exists for (wallet, conditionsHash).
+    /// @return validUntil Unix timestamp when the attestation expires (0 if not verified).
+    function checkWalletState(address wallet, bytes32 conditionsHash)
+        external
+        view
+        returns (bool verified, uint256 validUntil);
+}
 
 /// @title WalletStateHook
 /// @notice ERC-8183 hook that gates fund on a condition-based wallet-state verifier.
@@ -19,14 +34,16 @@ import "../interfaces/IWalletStateVerifier.sol";
 ///
 /// FLOW
 /// ----
-/// 1. Off-chain: the funder obtains a signed attestation for (wallet, condition set)
-///    from an IWalletStateVerifier implementer (see `examples/InsumerWalletStateVerifier.sol`).
-/// 2. A relayer submits the attestation on-chain so the verifier can answer
-///    `checkWalletState(wallet, conditionsHash) → (verified, validUntil)`.
+/// 1. Off-chain: the funder obtains a signed wallet-state attestation
+///    (signed verdict + conditions hash) from an attestation service.
+/// 2. An on-chain `IWalletStateVerifier` implementation surfaces that attestation
+///    as `(verified, validUntil)` keyed on `(wallet, conditionsHash)`.
+///    Implementations may verify the off-chain signature on-chain
+///    (e.g. via RIP-7212 P-256) or trust an authorized relayer.
 /// 3. Client calls `AgenticCommerce.fund(...)` — the core contract invokes
 ///    `beforeAction(jobId, fundSelector, data)` on this hook (callback step).
-/// 4. `_preFund` reads the funder's address, calls the verifier, reverts unless
-///    the wallet is verified and the attestation has not expired.
+/// 4. `_preFund` calls `verifier.checkWalletState(wallet, conditionsHash)` and
+///    reverts unless the wallet is verified and the attestation has not expired.
 ///
 /// TRUST MODEL
 /// -----------
@@ -39,6 +56,13 @@ import "../interfaces/IWalletStateVerifier.sol";
 ///   attack surface (parallels the immutable `minConfidence` pattern in
 ///   ReasoningVerifierHook).
 /// - Job-lifecycle authorization is enforced by `BaseERC8183Hook.onlyERC8183`.
+///
+/// MULTIHOOKROUTER
+/// ---------------
+/// To compose this hook behind `MultiHookRouter`, deploy with `erc8183Contract_`
+/// set to the router address. `requiredSelectors()` returns an empty array
+/// (no cross-selector dependencies), so router selector-completeness validation
+/// passes when this hook is configured solely on the `fund` selector.
 ///
 /// KEY PROPERTY: the hook performs no token custody. Profile A — Simple Policy.
 /// @custom:audit status=unaudited
