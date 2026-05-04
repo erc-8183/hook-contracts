@@ -2,8 +2,49 @@
 pragma solidity ^0.8.20;
 
 import "../BaseERC8183Hook.sol";
-import "../interfaces/IRNWYTrustOracle.sol";
+import "../interfaces/IERC8183HookMetadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+
+/// @title IRNWYTrustOracle
+/// @notice Interface for agent-identity-based trust oracles.
+/// @dev Lookup key is (agentId, chainId, registry) — supports multi-chain,
+///      multi-registry agent identity resolution.
+///      Reference implementation deployed on Base mainnet:
+///      https://basescan.org/address/0xD5fdccD492bB5568bC7aeB1f1E888e0BbA6276f4
+interface IRNWYTrustOracle {
+    /// @notice Returns the full trust record for an agent.
+    /// @param agentId  Agent ID within the registry
+    /// @param chainId  Chain where the agent is registered (e.g., 8453 for Base)
+    /// @param registry Registry identifier (e.g., "erc8004", "olas")
+    function getScore(
+        uint256 agentId,
+        uint256 chainId,
+        string calldata registry
+    ) external view returns (
+        uint8  score,
+        uint8  tier,
+        uint8  sybilSeverity,
+        uint40 updatedAt
+    );
+
+    /// @notice Returns true if the agent has a recorded trust score.
+    function hasScore(
+        uint256 agentId,
+        uint256 chainId,
+        string calldata registry
+    ) external view returns (bool);
+
+    /// @notice Returns true if the agent's trust score meets or exceeds the threshold.
+    function meetsThreshold(
+        uint256 agentId,
+        uint256 chainId,
+        string calldata registry,
+        uint8 threshold
+    ) external view returns (bool);
+
+    /// @notice Returns the total number of agents with recorded scores.
+    function agentCount() external view returns (uint256);
+}
 
 /**
  * @title TrustGateHook
@@ -41,8 +82,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *
  *      The hook maps wallet addresses to agent IDs via an owner-managed
  *      registry. The oracle does all scoring; the hook is a gate, not a judge.
+ *
+ *
+ *      MULTIHOOKROUTER
+ *      ---------------
+ *      Implements IERC8183HookMetadata. requiredSelectors() returns an empty
+ *      array; client and provider trust checks are independent gates and
+ *      neither depends on the other being configured.
  */
-contract TrustGateHook is BaseERC8183Hook, Ownable {
+contract TrustGateHook is BaseERC8183Hook, IERC8183HookMetadata, Ownable {
 
     /*//////////////////////////////////////////////////////////////
                             STORAGE
@@ -79,6 +127,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
     error TrustGateHook__BelowThreshold(uint256 jobId, address agent, uint256 agentId, uint8 threshold);
     error TrustGateHook__ArrayLengthMismatch();
     error TrustGateHook__SameValue();
+    error TrustGateHook__InvalidThreshold(uint8 threshold);
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -87,7 +136,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
     /**
      * @param erc8183Contract_ ERC-8183 core (AgenticCommerce) or MultiHookRouter
      * @param oracle_          IRNWYTrustOracle implementation
-     * @param threshold_       Minimum trust score (0-95) to pass the gate
+     * @param threshold_       Minimum trust score (1-95) to pass the gate
      * @param chainId_         Default chain ID for oracle lookups (e.g., 8453 for Base)
      * @param registry_        Default registry for oracle lookups (e.g., "erc8004")
      */
@@ -99,6 +148,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
         string memory registry_
     ) BaseERC8183Hook(erc8183Contract_) Ownable(msg.sender) {
         if (oracle_ == address(0)) revert TrustGateHook__ZeroAddress();
+        if (threshold_ == 0 || threshold_ > 95) revert TrustGateHook__InvalidThreshold(threshold_);
         oracle = IRNWYTrustOracle(oracle_);
         threshold = threshold_;
         defaultChainId = chainId_;
@@ -173,6 +223,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
 
     /// @notice Update the minimum trust score threshold.
     function setThreshold(uint8 threshold_) external onlyOwner {
+        if (threshold_ == 0 || threshold_ > 95) revert TrustGateHook__InvalidThreshold(threshold_);
         if (threshold_ == threshold) revert TrustGateHook__SameValue();
         emit ThresholdUpdated(threshold, threshold_);
         threshold = threshold_;
@@ -184,6 +235,23 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
         if (oracle_ == address(oracle)) revert TrustGateHook__SameValue();
         emit OracleUpdated(address(oracle), oracle_);
         oracle = IRNWYTrustOracle(oracle_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    IERC8183HookMetadata
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Returns the selectors this hook requires to function correctly.
+    /// @dev Empty array — client trust (_preFund) and provider trust (_preSubmit)
+    ///      are independent gates with no cross-selector dependency.
+    function requiredSelectors() external pure returns (bytes4[] memory) {
+        return new bytes4[](0);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return
+            interfaceId == type(IERC8183HookMetadata).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /*//////////////////////////////////////////////////////////////
