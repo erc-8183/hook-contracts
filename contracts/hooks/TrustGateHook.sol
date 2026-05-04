@@ -43,6 +43,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *      registry. The oracle does all scoring; the hook is a gate, not a judge.
  */
 contract TrustGateHook is BaseERC8183Hook, Ownable {
+
     /*//////////////////////////////////////////////////////////////
                             STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -77,6 +78,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
     error TrustGateHook__NoAgentId(address agent);
     error TrustGateHook__BelowThreshold(uint256 jobId, address agent, uint256 agentId, uint8 threshold);
     error TrustGateHook__ArrayLengthMismatch();
+    error TrustGateHook__SameValue();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -152,6 +154,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
 
     /// @notice Register a wallet → agent ID mapping.
     function setAgentId(address wallet, uint256 agentId) external onlyOwner {
+        if (agentIds[wallet] == agentId && registered[wallet]) revert TrustGateHook__SameValue();
         agentIds[wallet] = agentId;
         registered[wallet] = true;
         emit AgentIdSet(wallet, agentId);
@@ -161,6 +164,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
     function setAgentIds(address[] calldata wallets, uint256[] calldata ids) external onlyOwner {
         if (wallets.length != ids.length) revert TrustGateHook__ArrayLengthMismatch();
         for (uint256 i = 0; i < wallets.length; i++) {
+            if (agentIds[wallets[i]] == ids[i] && registered[wallets[i]]) continue;
             agentIds[wallets[i]] = ids[i];
             registered[wallets[i]] = true;
             emit AgentIdSet(wallets[i], ids[i]);
@@ -169,6 +173,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
 
     /// @notice Update the minimum trust score threshold.
     function setThreshold(uint8 threshold_) external onlyOwner {
+        if (threshold_ == threshold) revert TrustGateHook__SameValue();
         emit ThresholdUpdated(threshold, threshold_);
         threshold = threshold_;
     }
@@ -176,6 +181,7 @@ contract TrustGateHook is BaseERC8183Hook, Ownable {
     /// @notice Update the oracle address (must implement IRNWYTrustOracle).
     function setOracle(address oracle_) external onlyOwner {
         if (oracle_ == address(0)) revert TrustGateHook__ZeroAddress();
+        if (oracle_ == address(oracle)) revert TrustGateHook__SameValue();
         emit OracleUpdated(address(oracle), oracle_);
         oracle = IRNWYTrustOracle(oracle_);
     }
