@@ -136,7 +136,7 @@ contract TrustGateHook is BaseERC8183Hook, IERC8183HookMetadata, Ownable {
     /**
      * @param erc8183Contract_ ERC-8183 core (AgenticCommerce) or MultiHookRouter
      * @param oracle_          IRNWYTrustOracle implementation
-     * @param threshold_       Minimum trust score (1-95) to pass the gate
+     * @param threshold_       Minimum trust score (1-100) to pass the gate
      * @param chainId_         Default chain ID for oracle lookups (e.g., 8453 for Base)
      * @param registry_        Default registry for oracle lookups (e.g., "erc8004")
      */
@@ -148,7 +148,7 @@ contract TrustGateHook is BaseERC8183Hook, IERC8183HookMetadata, Ownable {
         string memory registry_
     ) BaseERC8183Hook(erc8183Contract_) Ownable(msg.sender) {
         if (oracle_ == address(0)) revert TrustGateHook__ZeroAddress();
-        if (threshold_ == 0 || threshold_ > 95) revert TrustGateHook__InvalidThreshold(threshold_);
+        if (threshold_ == 0 || threshold_ > 100) revert TrustGateHook__InvalidThreshold(threshold_);
         oracle = IRNWYTrustOracle(oracle_);
         threshold = threshold_;
         defaultChainId = chainId_;
@@ -223,7 +223,7 @@ contract TrustGateHook is BaseERC8183Hook, IERC8183HookMetadata, Ownable {
 
     /// @notice Update the minimum trust score threshold.
     function setThreshold(uint8 threshold_) external onlyOwner {
-        if (threshold_ == 0 || threshold_ > 95) revert TrustGateHook__InvalidThreshold(threshold_);
+        if (threshold_ == 0 || threshold_ > 100) revert TrustGateHook__InvalidThreshold(threshold_);
         if (threshold_ == threshold) revert TrustGateHook__SameValue();
         emit ThresholdUpdated(threshold, threshold_);
         threshold = threshold_;
