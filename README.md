@@ -10,9 +10,11 @@
 
 | Contract | Description |
 |----------|-------------|
-| **[AgenticCommerceHooked.sol](./contracts/AgenticCommerceHooked.sol)** | Hookable variant of the core protocol. Same lifecycle with an optional `hook` address per job and `optParams` on all hookable functions. `claimRefund` is deliberately not hookable. |
-| **[IACPHook.sol](./contracts/IACPHook.sol)** | Interface all hooks must implement: `beforeAction` and `afterAction`. |
-| **[BaseACPHook.sol](./contracts/BaseACPHook.sol)** | Abstract base that routes `beforeAction`/`afterAction` to named virtual functions (`_preFund`, `_postComplete`, etc.). Inherit this and override only what you need. |
+| **[BaseERC8183Hook.sol](./contracts/BaseERC8183Hook.sol)** | Abstract base that routes `beforeAction`/`afterAction` to named virtual functions (`_preFund`, `_postComplete`, etc.). Inherit this and override only what you need. |
+| **[IERC8183HookMetadata.sol](./contracts/interfaces/IERC8183HookMetadata.sol)** | Required metadata interface for MultiHookRouter compatibility. Declares which selectors a hook depends on. |
+| **[MultiHookRouter.sol](./contracts/hooks/MultiHookRouter.sol)** | Composability layer. Fans `beforeAction`/`afterAction` out to an ordered list of sub-hooks per job, per selector. |
+
+The hookable core protocol (`AgenticCommerce`) and the base hook interface (`IERC8183Hook`) live in the [base-contracts submodule](./contracts/erc8183/).
 
 ## Hook Examples
 
@@ -23,12 +25,15 @@
 
 ## Building a Hook
 
-1. Inherit `BaseACPHook` and override only the callbacks you need.
-2. See [CONTRIBUTING.md](./CONTRIBUTING.md) for full guidelines.
+1. Inherit `BaseERC8183Hook` and override only the callbacks you need.
+2. Implement `IERC8183HookMetadata` so the hook is MultiHookRouter-compatible.
+3. Keep the hook in a single `.sol` file with any custom interfaces inlined.
+4. Stay vendor-neutral — no specific token, exchange, or vendor names.
+5. See [CONTRIBUTING.md](./CONTRIBUTING.md) for full PR guidelines.
 
 ## Contributing
 
-Contributions, feedback, and discussion are welcome - please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+Contributions, feedback, and discussion are welcome — please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to get started.
 
 ## License
 
