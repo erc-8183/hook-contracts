@@ -20,7 +20,7 @@
 |----------|---------|-------------|
 | [BiddingHook.sol](./contracts/hooks/BiddingHook.sol) | A — Simple Policy | Off-chain signed bidding for provider selection. Providers sign bid commitments; the hook verifies the winning signature on-chain via `setProvider`. Zero direct external calls — everything flows through core → hook callbacks. |
 | [FundTransferHook.sol](./contracts/hooks/FundTransferHook.sol) | B — Advanced Escrow | Two-phase fund transfer for token conversion/bridging jobs. Client capital flows to provider at `fund`; provider deposits output tokens at `submit`; buyer receives them at `complete`. |
-| [RNWYTrustGateHook.sol](./contracts/hooks/RNWYTrustGateHook.sol) | A — Simple Policy | Trust score gate using the [RNWY on-chain oracle](https://basescan.org/address/0xD5fdccD492bB5568bC7aeB1f1E888e0BbA6276f4). Checks client trust on `fund`, provider trust on `submit`. 138,000+ agent scores across 3 registries and 11 chains. |
+| [TrustGateHook.sol](./contracts/hooks/TrustGateHook.sol) | A — Simple Policy | Trust score gate using an on-chain oracle. Checks client trust on `fund`, provider trust on `submit`. |
 
 ## Building a Hook
 
