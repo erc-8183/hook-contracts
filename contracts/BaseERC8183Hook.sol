@@ -38,6 +38,8 @@ abstract contract BaseERC8183Hook is ERC165, IERC8183Hook {
 
     /// @notice Thrown when the caller is not the ERC-8183 contract
     error OnlyERC8183Contract();
+    /// @notice Thrown when the ERC-8183 contract is set to zero address
+    error InvalidERC8183Contract();
 
     /// @dev Restricts access to the ERC-8183 core contract or the hook registered for the job.
     ///      Standalone: msg.sender must be erc8183Contract (core).
@@ -52,6 +54,7 @@ abstract contract BaseERC8183Hook is ERC165, IERC8183Hook {
 
     /// @param erc8183Contract_ The ERC-8183 core contract address
     constructor(address erc8183Contract_) {
+        if (erc8183Contract_ == address(0)) revert InvalidERC8183Contract();
         erc8183Contract = erc8183Contract_;
     }
 
