@@ -9,17 +9,17 @@ import "@erc8183/AgenticCommerce.sol";
 
 /**
  * @title FundTransferHook
- * @notice Example ACP hook for two-phase fund transfer jobs.
+ * @notice Example ERC-8183 hook for two-phase fund transfer jobs.
  *
  * USE CASE
  * --------
  * An agent's job is to convert / bridge / swap tokens on the client's behalf.
- * The client provides capital (e.g. USDC) to the provider, who uses it to
- * produce output tokens (e.g. DAI). The hook ensures the provider deposits the
- * output tokens back before the job can be completed, then releases them to a
- * designated buyer (usually the client).
+ * The client provides capital to the provider, who uses it to produce output
+ * tokens. The hook ensures the provider deposits the output tokens back before
+ * the job can be completed, then releases them to a designated buyer (usually
+ * the client).
  *
- * The service fee for the job is handled by the core ACP escrow (job.budget).
+ * The service fee for the job is handled by the core ERC-8183 escrow (job.budget).
  * The capital and output token flow is handled entirely by this hook.
  *
  * FLOW (hook callbacks marked with ->)

@@ -9,7 +9,7 @@ import "@erc8183/AgenticCommerce.sol";
 
 /**
  * @title BiddingHook
- * @notice Example ACP hook that manages off-chain signed bidding for provider
+ * @notice Example ERC-8183 hook that manages off-chain signed bidding for provider
  *         selection — with zero direct calls to the hook.
  *
  * USE CASE
