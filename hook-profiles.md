@@ -6,7 +6,7 @@ This document describes **recommended profiles** for using hooks with ERC-8183. 
 - **Profile B — Advanced Escrow / Settlement Hooks**: hooks that custody tokens and orchestrate multi‑phase flows (e.g. two‑phase escrow, atomic side‑transfers), accepting higher complexity and liveness risk.
 - **Profile C — Experimental / Custom Hooks**: hooks that fall outside A and B; should be treated as high‑risk or non‑production until well‑understood and audited.
 
-The profiles assume a core compatible with the hookable ERC-8183 variant (e.g. `AgenticCommerceHooked` in the reference implementations), where:
+The profiles assume a core compatible with the hookable ERC-8183 variant (e.g. `ERC8183` in the reference implementations), where:
 
 - Each job MAY store a per‑job `hook` address set at `createJob`.
 - Hookable functions call:

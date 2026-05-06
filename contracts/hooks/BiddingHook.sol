@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import "../BaseERC8183Hook.sol";
-import "../interfaces/IERC8183HookMetadata.sol";
-import "@erc8183/AgenticCommerce.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {BaseERC8183Hook} from "../BaseERC8183Hook.sol";
+import {IERC8183HookMetadata} from "../interfaces/IERC8183HookMetadata.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
 
 /**
  * @title BiddingHook
@@ -124,8 +124,8 @@ contract BiddingHook is BaseERC8183Hook, IERC8183HookMetadata {
     // --- Helpers --------------------------------------------------------------
 
     /// @dev Typed accessor for the core contract
-    function _core() internal view returns (AgenticCommerce) {
-        return AgenticCommerce(erc8183Contract);
+    function _core() internal view returns (ERC8183) {
+        return ERC8183(erc8183Contract);
     }
 
     // --- IERC8183HookMetadata ------------------------------------------------

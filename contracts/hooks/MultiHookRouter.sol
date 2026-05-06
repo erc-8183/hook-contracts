@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@erc8183/IERC8183Hook.sol";
-import "../interfaces/IERC8183HookMetadata.sol";
-import "@erc8183/AgenticCommerce.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
+import {IERC8183HookMetadata} from "../interfaces/IERC8183HookMetadata.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /// @title MultiHookRouter
 /// @notice Routes hook callbacks to per-selector ordered lists of sub-hooks per job.
@@ -85,14 +85,14 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
     }
 
     modifier onlyJobClient(uint256 jobId) {
-        AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
+        ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
         if (msg.sender != job.client) revert OnlyJobClient();
         _;
     }
 
     modifier hooksNotLocked(uint256 jobId) {
-        AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
-        if (job.status != AgenticCommerce.JobStatus.Open) revert HooksLocked();
+        ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
+        if (job.status != ERC8183.JobStatus.Open) revert HooksLocked();
         _;
     }
 
@@ -274,7 +274,7 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
         (bool dispatched, bytes[] memory perHookData) = _splitHookData(selector, data, len);
 
         for (uint256 i; i < len; ) {
-            if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hooks[i])) {
+            if (!ERC8183(erc8183Contract).whitelistedHooks(hooks[i])) {
                 emit DewhitelistedHookSkipped(jobId, selector, hooks[i]);
                 unchecked { ++i; }
                 continue;
@@ -301,7 +301,7 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
         (bool dispatched, bytes[] memory perHookData) = _splitHookData(selector, data, len);
 
         for (uint256 i; i < len; ) {
-            if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hooks[i])) {
+            if (!ERC8183(erc8183Contract).whitelistedHooks(hooks[i])) {
                 emit DewhitelistedHookSkipped(jobId, selector, hooks[i]);
                 unchecked { ++i; }
                 continue;
@@ -318,8 +318,8 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
     // ──────────────────── Passthrough Views ────────────────────
 
     /// @notice Passthrough to core getJob -- allows sub-hooks to call _core().getJob()
-    function getJob(uint256 jobId) external view returns (AgenticCommerce.Job memory) {
-        return AgenticCommerce(erc8183Contract).getJob(jobId);
+    function getJob(uint256 jobId) external view returns (ERC8183.Job memory) {
+        return ERC8183(erc8183Contract).getJob(jobId);
     }
 
     // ──────────────────── Views ────────────────────
@@ -380,7 +380,7 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
     /// @dev Validate a sub-hook: non-zero, whitelisted on core, supports IERC8183Hook and IERC8183HookMetadata
     function _validateSubHook(address hook) private view {
         if (hook == address(0)) revert ZeroAddress();
-        if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hook))
+        if (!ERC8183(erc8183Contract).whitelistedHooks(hook))
             revert SubHookNotWhitelisted();
         if (!ERC165Checker.supportsInterface(hook, type(IERC8183Hook).interfaceId))
             revert InvalidHook();
@@ -417,7 +417,7 @@ contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Owna
     }
 
     /// @dev Extract optParams bytes from the ABI-encoded data based on selector.
-    ///      Encoding matches AgenticCommerce's data layout.
+    ///      Encoding matches ERC8183's data layout.
     function _extractOptParams(
         bytes4 selector,
         bytes calldata data
