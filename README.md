@@ -22,6 +22,7 @@ The hookable core protocol (`AgenticCommerce`) and the base hook interface (`IER
 |----------|---------|-------------|
 | [BiddingHook.sol](./contracts/hooks/BiddingHook.sol) | A — Simple Policy | Off-chain signed bidding for provider selection. Providers sign bid commitments; the hook verifies the winning signature on-chain via `setProvider`. Zero direct external calls — everything flows through core → hook callbacks. |
 | [FundTransferHook.sol](./contracts/hooks/FundTransferHook.sol) | B — Advanced Escrow | Two-phase fund transfer for token conversion/bridging jobs. Client capital flows to provider at `fund`; provider deposits output tokens at `submit`; buyer receives them at `complete`. |
+| [AgentCourtHook.sol](./contracts/hooks/AgentCourtHook.sol) | B — Advanced Escrow | Routes rejected jobs to Agent Court for decentralised judge-panel arbitration. Writes ERC-8004 reputation signals on completion and after verdict. Deployed on Arbitrum Sepolia by [Jurex Network](https://jurex.network). |
 
 ## Building a Hook
 
