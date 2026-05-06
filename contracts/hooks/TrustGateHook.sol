@@ -44,23 +44,44 @@ interface ITrustOracle {
     function agentCount() external view returns (uint256);
 }
 
-/**
- * @title TrustGateHook
- * @notice ERC-8183 hook that gates job lifecycle transitions by on-chain trust score.
- *
- * @dev Inherits BaseERC8183Hook for correct selector routing, data decoding,
- *      and onlyERC8183 caller authentication. Reads from any oracle implementing
- *      ITrustOracle — an agent-identity-based trust interface using
- *      (agentId, chainId, registry) lookups across multiple chains and registries.
- *
- *      HOOK POINTS
- *      -----------
- *      - _preFund   : check client trust, revert if below threshold
- *      - _preSubmit : check provider trust, revert if below threshold
- *
- *      The hook maps wallet addresses to agent IDs via an owner-managed
- *      registry. The oracle does all scoring; the hook is a gate, not a judge.
- */
+/// @title TrustGateHook
+/// @notice ERC-8183 hook that gates job lifecycle transitions by on-chain trust score.
+///
+/// USE CASE
+/// --------
+/// Score-based participant gating: verify the funding wallet (at fund) and
+/// the providing wallet (at submit) meet a minimum reputation threshold before
+/// the job can advance. The hook accepts any oracle implementing ITrustOracle;
+/// the gate is keyed by (agentId, chainId, registry) so participants are
+/// evaluated as registered agents rather than raw addresses.
+///
+/// FLOW
+/// ----
+/// 1. Off-chain: an oracle implementing ITrustOracle scores agents keyed by
+///    (agentId, chainId, registry) and exposes meetsThreshold for on-chain
+///    consumption.
+/// 2. The hook owner registers wallet → agent ID mappings via setAgentId or
+///    setAgentIds, binding each participating wallet to its scored identity.
+/// 3. Client calls AgenticCommerce.fund(...) — the core invokes
+///    beforeAction(jobId, fundSelector, data) on this hook, which routes to
+///    _preFund. The hook resolves the caller's agent ID and reverts unless
+///    the agent meets the configured threshold.
+/// 4. Provider calls AgenticCommerce.submit(...) — same flow through
+///    _preSubmit, gating the submit transition by provider trust score.
+///
+/// TRUST MODEL
+/// -----------
+/// - The hook trusts the injected ITrustOracle to return honest threshold
+///   verdicts. Implementations are free to define their own scoring formula,
+///   ceiling, and signal mix; the hook is indifferent to internal scoring
+///   logic and only consumes meetsThreshold.
+/// - Threshold is mutable by the owner within 1–100. The constructor and
+///   setThreshold reject 0 (gate disabled) and values above 100 (unreachable
+///   by convention).
+/// - Wallet → agent ID registration is owner-managed. agentId == 0 is a valid
+///   registered value because a separate registered mapping tracks existence.
+/// - Job-lifecycle authorization is enforced by BaseERC8183Hook.onlyERC8183.
+/// - The oracle does all scoring; the hook is a gate, not a judge.
 contract TrustGateHook is BaseERC8183Hook, IERC8183HookMetadata, Ownable {
 
     /*//////////////////////////////////////////////////////////////
