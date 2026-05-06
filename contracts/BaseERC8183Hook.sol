@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@erc8183/IERC8183Hook.sol";
-import "@erc8183/AgenticCommerce.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
  * @title BaseERC8183Hook
@@ -15,9 +15,9 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *      updated independently without changing the IERC8183Hook interface.
  *
  *      All virtual functions include an `address caller` parameter because
- *      AgenticCommerce supports operators, so the actual caller matters.
+ *      ERC8183 supports operators, so the actual caller matters.
  *
- *      Data encoding per selector (as produced by AgenticCommerce):
+ *      Data encoding per selector (as produced by ERC8183):
  *        setBudget   : abi.encode(caller, token, amount, optParams)
  *        fund        : abi.encode(caller, optParams)
  *        submit      : abi.encode(caller, deliverable, optParams)
@@ -46,7 +46,7 @@ abstract contract BaseERC8183Hook is ERC165, IERC8183Hook {
     ///      Behind router: msg.sender must be the hook registered on core for this jobId.
     modifier onlyERC8183(uint256 jobId) {
         if (msg.sender != erc8183Contract) {
-            AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
+            ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
             if (msg.sender != job.hook) revert OnlyERC8183Contract();
         }
         _;
@@ -67,7 +67,7 @@ abstract contract BaseERC8183Hook is ERC165, IERC8183Hook {
     }
 
     // --- Selector constants (avoid repeated keccak at runtime) ----------------
-    // These match AgenticCommerce function selectors.
+    // These match ERC8183 function selectors.
     bytes4 private constant SEL_SET_BUDGET =
         bytes4(keccak256("setBudget(uint256,address,uint256,bytes)"));
     bytes4 private constant SEL_FUND =

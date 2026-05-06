@@ -14,7 +14,7 @@
 | **[IERC8183HookMetadata.sol](./contracts/interfaces/IERC8183HookMetadata.sol)** | Required metadata interface for MultiHookRouter compatibility. Declares which selectors a hook depends on. |
 | **[MultiHookRouter.sol](./contracts/hooks/MultiHookRouter.sol)** | Composability layer. Fans `beforeAction`/`afterAction` out to an ordered list of sub-hooks per job, per selector. |
 
-The hookable core protocol (`AgenticCommerce`) and the base hook interface (`IERC8183Hook`) live in the [base-contracts submodule](./contracts/erc8183/).
+The hookable core protocol (`ERC8183`) and the base hook interface (`IERC8183Hook`) live in the [base-contracts submodule](./contracts/erc8183/).
 
 ## Hook Examples
 

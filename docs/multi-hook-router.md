@@ -224,7 +224,7 @@ The only difference is during job setup: instead of deploying a custom hook, the
 
 ## Impact
 
-- No changes to the core `AgenticCommerce` contract
+- No changes to the core `ERC8183` contract
 - The router is a standalone contract (~510 lines)
 - Existing `FundTransferHook` continues to work as-is for single-hook jobs
 - Multi-hook support is additive — it does not break or replace anything

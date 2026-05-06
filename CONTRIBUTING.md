@@ -57,8 +57,8 @@ contract YourHook is BaseERC8183Hook, IERC8183HookMetadata {
 If your hook reads job state, define a typed accessor matching the existing examples:
 
 ```solidity
-function _core() internal view returns (AgenticCommerce) {
-    return AgenticCommerce(erc8183Contract);
+function _core() internal view returns (ERC8183) {
+    return ERC8183(erc8183Contract);
 }
 ```
 
