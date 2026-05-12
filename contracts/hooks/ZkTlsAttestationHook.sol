@@ -317,11 +317,14 @@ contract ZkTlsAttestationHook is BaseERC8183Hook, IERC8183HookMetadata {
         if (!ok) revert AttestationVerifierFailed();
 
         if (step.maxAge != 0) {
-            // Use unchecked subtraction guarded by an explicit compare to avoid
-            // tripping on attestations whose timestamp is somehow > block.timestamp;
-            // those are stale-by-clock-skew and should also be rejected.
-            if (block.timestamp < att.timestamp) revert AttestationStale();
-            if (block.timestamp - att.timestamp > step.maxAge) revert AttestationStale();
+            // zkTLS attestors stamp `att.timestamp` in milliseconds since
+            // epoch (Primus's convention and the de facto norm), while
+            // EVM's `block.timestamp` is in seconds. Convert before the
+            // compare. maxAge stays in seconds — the natural Solidity time
+            // unit for spec authors.
+            uint256 attTsSec = uint256(att.timestamp) / 1000;
+            if (block.timestamp < attTsSec) revert AttestationStale();
+            if (block.timestamp - attTsSec > step.maxAge) revert AttestationStale();
         }
 
         if (step.methodHash != bytes32(0)
