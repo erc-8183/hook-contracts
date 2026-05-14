@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../BaseERC8183Hook.sol";
-import "../interfaces/IERC8183HookMetadata.sol";
+import {BaseERC8183Hook} from "../BaseERC8183Hook.sol";
+import {IERC8183HookMetadata} from "../interfaces/IERC8183HookMetadata.sol";
 
 /// @title IWalletStateVerifier
 /// @notice Minimal interface for on-chain wallet-state verification.

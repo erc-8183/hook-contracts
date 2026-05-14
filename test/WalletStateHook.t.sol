@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
 import {IERC8183HookMetadata} from "../contracts/interfaces/IERC8183HookMetadata.sol";
+import {BaseERC8183Hook} from "../contracts/BaseERC8183Hook.sol";
 import {WalletStateHook, IWalletStateVerifier} from "../contracts/hooks/WalletStateHook.sol";
 
 contract MockWalletStateVerifier is IWalletStateVerifier {
@@ -71,7 +72,7 @@ contract WalletStateHookTest is Test {
     }
 
     function test_Constructor_RevertsOnZeroCore() public {
-        vm.expectRevert(WalletStateHook.InvalidParameters.selector);
+        vm.expectRevert(BaseERC8183Hook.InvalidERC8183Contract.selector);
         new WalletStateHook(
             address(0),
             IWalletStateVerifier(address(mockVerifier)),
