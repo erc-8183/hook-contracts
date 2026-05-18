@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@erc8183/IACPHook.sol";
-import "@erc8183/AgenticCommerce.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
  * @title BaseERC8183Hook
@@ -12,12 +12,12 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *      developers only override what they need.
  *
  *      NOT part of the ERC standard — this is a helper contract that can be
- *      updated independently without changing the IACPHook interface.
+ *      updated independently without changing the IERC8183Hook interface.
  *
  *      All virtual functions include an `address caller` parameter because
- *      AgenticCommerce supports operators, so the actual caller matters.
+ *      ERC8183 supports operators, so the actual caller matters.
  *
- *      Data encoding per selector (as produced by AgenticCommerce):
+ *      Data encoding per selector (as produced by ERC8183):
  *        setBudget   : abi.encode(caller, token, amount, optParams)
  *        fund        : abi.encode(caller, optParams)
  *        submit      : abi.encode(caller, deliverable, optParams)
@@ -32,19 +32,21 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  *              }
  *          }
  */
-abstract contract BaseERC8183Hook is ERC165, IACPHook {
+abstract contract BaseERC8183Hook is ERC165, IERC8183Hook {
     /// @notice The ERC-8183 core contract (or MultiHookRouter) that is authorized to call this hook
     address public immutable erc8183Contract;
 
     /// @notice Thrown when the caller is not the ERC-8183 contract
     error OnlyERC8183Contract();
+    /// @notice Thrown when the ERC-8183 contract is set to zero address
+    error InvalidERC8183Contract();
 
     /// @dev Restricts access to the ERC-8183 core contract or the hook registered for the job.
     ///      Standalone: msg.sender must be erc8183Contract (core).
     ///      Behind router: msg.sender must be the hook registered on core for this jobId.
     modifier onlyERC8183(uint256 jobId) {
         if (msg.sender != erc8183Contract) {
-            AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
+            ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
             if (msg.sender != job.hook) revert OnlyERC8183Contract();
         }
         _;
@@ -52,6 +54,7 @@ abstract contract BaseERC8183Hook is ERC165, IACPHook {
 
     /// @param erc8183Contract_ The ERC-8183 core contract address
     constructor(address erc8183Contract_) {
+        if (erc8183Contract_ == address(0)) revert InvalidERC8183Contract();
         erc8183Contract = erc8183Contract_;
     }
 
@@ -59,12 +62,12 @@ abstract contract BaseERC8183Hook is ERC165, IACPHook {
         bytes4 interfaceId
     ) public view virtual override(ERC165, IERC165) returns (bool) {
         return
-            interfaceId == type(IACPHook).interfaceId ||
+            interfaceId == type(IERC8183Hook).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
     // --- Selector constants (avoid repeated keccak at runtime) ----------------
-    // These match AgenticCommerce function selectors.
+    // These match ERC8183 function selectors.
     bytes4 private constant SEL_SET_BUDGET =
         bytes4(keccak256("setBudget(uint256,address,uint256,bytes)"));
     bytes4 private constant SEL_FUND =
@@ -76,7 +79,7 @@ abstract contract BaseERC8183Hook is ERC165, IACPHook {
     bytes4 private constant SEL_REJECT =
         bytes4(keccak256("reject(uint256,bytes32,bytes)"));
 
-    // --- IACPHook implementation (router) ------------------------------------
+    // --- IERC8183Hook implementation (router) ------------------------------------
 
     function beforeAction(
         uint256 jobId,

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@erc8183/IACPHook.sol";
-import "../interfaces/IERC8183HookMetadata.sol";
-import "@erc8183/AgenticCommerce.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {IERC8183Hook} from "@erc8183/IERC8183Hook.sol";
+import {IERC8183HookMetadata} from "../interfaces/IERC8183HookMetadata.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /// @title MultiHookRouter
 /// @notice Routes hook callbacks to per-selector ordered lists of sub-hooks per job.
@@ -23,7 +23,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 ///      Sub-hooks must be whitelisted on the core contract.
 ///      Exposes passthrough view functions so sub-hooks deployed with
 ///      erc8183Contract = routerAddress can call _core().getJob() etc.
-contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable {
+contract MultiHookRouter is ERC165, IERC8183Hook, ReentrancyGuardTransient, Ownable {
     // ──────────────────── Immutables ────────────────────
 
     /// @notice The ERC-8183 core contract
@@ -85,14 +85,14 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
     }
 
     modifier onlyJobClient(uint256 jobId) {
-        AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
+        ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
         if (msg.sender != job.client) revert OnlyJobClient();
         _;
     }
 
     modifier hooksNotLocked(uint256 jobId) {
-        AgenticCommerce.Job memory job = AgenticCommerce(erc8183Contract).getJob(jobId);
-        if (job.status != AgenticCommerce.JobStatus.Open) revert HooksLocked();
+        ERC8183.Job memory job = ERC8183(erc8183Contract).getJob(jobId);
+        if (job.status != ERC8183.JobStatus.Open) revert HooksLocked();
         _;
     }
 
@@ -192,6 +192,9 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
     /// @param jobId The job ID
     /// @param selector The hookable function selector
     /// @param hook The sub-hook address to remove
+    /// @dev Preserves the relative order of the remaining hooks. Order matters
+    ///      because beforeAction/afterAction iterate _jobHooks in storage order
+    ///      and _splitHookData binds per-hook optParams to hooks by index.
     function removeHook(
         uint256 jobId,
         bytes4 selector,
@@ -202,7 +205,11 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
 
         for (uint256 i; i < len; ) {
             if (hooks[i] == hook) {
-                hooks[i] = hooks[len - 1];
+                // Shift remaining elements left so removal is order-preserving.
+                for (uint256 j = i; j + 1 < len; ) {
+                    hooks[j] = hooks[j + 1];
+                    unchecked { ++j; }
+                }
                 hooks.pop();
                 emit HookRemoved(jobId, selector, hook);
                 return;
@@ -247,9 +254,9 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
         emit HooksReordered(jobId, selector, hooks);
     }
 
-    // ──────────────────── IACPHook Implementation ────────────────────
+    // ──────────────────── IERC8183Hook Implementation ────────────────────
 
-    /// @inheritdoc IACPHook
+    /// @inheritdoc IERC8183Hook
     function beforeAction(
         uint256 jobId,
         bytes4 selector,
@@ -267,21 +274,21 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
         (bool dispatched, bytes[] memory perHookData) = _splitHookData(selector, data, len);
 
         for (uint256 i; i < len; ) {
-            if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hooks[i])) {
+            if (!ERC8183(erc8183Contract).whitelistedHooks(hooks[i])) {
                 emit DewhitelistedHookSkipped(jobId, selector, hooks[i]);
                 unchecked { ++i; }
                 continue;
             }
             if (dispatched) {
-                IACPHook(hooks[i]).beforeAction(jobId, selector, perHookData[i]);
+                IERC8183Hook(hooks[i]).beforeAction(jobId, selector, perHookData[i]);
             } else {
-                IACPHook(hooks[i]).beforeAction(jobId, selector, data);
+                IERC8183Hook(hooks[i]).beforeAction(jobId, selector, data);
             }
             unchecked { ++i; }
         }
     }
 
-    /// @inheritdoc IACPHook
+    /// @inheritdoc IERC8183Hook
     function afterAction(
         uint256 jobId,
         bytes4 selector,
@@ -294,15 +301,15 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
         (bool dispatched, bytes[] memory perHookData) = _splitHookData(selector, data, len);
 
         for (uint256 i; i < len; ) {
-            if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hooks[i])) {
+            if (!ERC8183(erc8183Contract).whitelistedHooks(hooks[i])) {
                 emit DewhitelistedHookSkipped(jobId, selector, hooks[i]);
                 unchecked { ++i; }
                 continue;
             }
             if (dispatched) {
-                IACPHook(hooks[i]).afterAction(jobId, selector, perHookData[i]);
+                IERC8183Hook(hooks[i]).afterAction(jobId, selector, perHookData[i]);
             } else {
-                IACPHook(hooks[i]).afterAction(jobId, selector, data);
+                IERC8183Hook(hooks[i]).afterAction(jobId, selector, data);
             }
             unchecked { ++i; }
         }
@@ -311,8 +318,8 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
     // ──────────────────── Passthrough Views ────────────────────
 
     /// @notice Passthrough to core getJob -- allows sub-hooks to call _core().getJob()
-    function getJob(uint256 jobId) external view returns (AgenticCommerce.Job memory) {
-        return AgenticCommerce(erc8183Contract).getJob(jobId);
+    function getJob(uint256 jobId) external view returns (ERC8183.Job memory) {
+        return ERC8183(erc8183Contract).getJob(jobId);
     }
 
     // ──────────────────── Views ────────────────────
@@ -333,7 +340,7 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
         bytes4 interfaceId
     ) public view override(ERC165, IERC165) returns (bool) {
         return
-            interfaceId == type(IACPHook).interfaceId ||
+            interfaceId == type(IERC8183Hook).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -370,12 +377,12 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
         emit HooksConfigured(jobId, selector, hooks);
     }
 
-    /// @dev Validate a sub-hook: non-zero, whitelisted on core, supports IACPHook and IERC8183HookMetadata
+    /// @dev Validate a sub-hook: non-zero, whitelisted on core, supports IERC8183Hook and IERC8183HookMetadata
     function _validateSubHook(address hook) private view {
         if (hook == address(0)) revert ZeroAddress();
-        if (!AgenticCommerce(erc8183Contract).whitelistedHooks(hook))
+        if (!ERC8183(erc8183Contract).whitelistedHooks(hook))
             revert SubHookNotWhitelisted();
-        if (!ERC165Checker.supportsInterface(hook, type(IACPHook).interfaceId))
+        if (!ERC165Checker.supportsInterface(hook, type(IERC8183Hook).interfaceId))
             revert InvalidHook();
         if (!ERC165Checker.supportsInterface(hook, type(IERC8183HookMetadata).interfaceId))
             revert InvalidHook();
@@ -410,7 +417,7 @@ contract MultiHookRouter is ERC165, IACPHook, ReentrancyGuardTransient, Ownable 
     }
 
     /// @dev Extract optParams bytes from the ABI-encoded data based on selector.
-    ///      Encoding matches AgenticCommerce's data layout.
+    ///      Encoding matches ERC8183's data layout.
     function _extractOptParams(
         bytes4 selector,
         bytes calldata data

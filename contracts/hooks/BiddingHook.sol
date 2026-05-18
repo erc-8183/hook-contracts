@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import "../BaseACPHook.sol";
-import "@acp/AgenticCommerce.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {BaseERC8183Hook} from "../BaseERC8183Hook.sol";
+import {IERC8183HookMetadata} from "../interfaces/IERC8183HookMetadata.sol";
+import {ERC8183} from "@erc8183/ERC8183.sol";
 
 /**
  * @title BiddingHook
- * @notice Example ACP hook that manages off-chain signed bidding for provider
+ * @notice Example ERC-8183 hook that manages off-chain signed bidding for provider
  *         selection — with zero direct calls to the hook.
  *
  * USE CASE
@@ -46,7 +47,7 @@ import "@acp/AgenticCommerce.sol";
  * KEY PROPERTY: Zero direct external calls to the hook. Everything flows
  * through core contract -> hook callbacks.
  */
-contract BiddingHook is BaseACPHook {
+contract BiddingHook is BaseERC8183Hook, IERC8183HookMetadata {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
@@ -63,8 +64,9 @@ contract BiddingHook is BaseACPHook {
     error NoBidDeadline();
     error BudgetMismatch();
     error ProviderNotSet();
+    error ZeroBidAmount();
 
-    constructor(address acpContract_) BaseACPHook(acpContract_) {}
+    constructor(address erc8183Contract_) BaseERC8183Hook(erc8183Contract_) {}
 
     // --- Hook callbacks only (no direct external functions) ---
 
@@ -93,6 +95,11 @@ contract BiddingHook is BaseACPHook {
 
         // Mode 2: verify signed bid and store committedAmount
         if (block.timestamp < b.deadline) revert BiddingStillOpen();
+        // committedAmount == 0 doubles as the "no bidding committed yet" sentinel
+        // (see Mode 3 gate above and _preFund). Storing a zero bid would never
+        // advance state out of Mode 2 and would silently bypass _preFund's
+        // budget enforcement, so reject it here.
+        if (amount == 0) revert ZeroBidAmount();
 
         address provider = _core().getJob(jobId).provider;
         if (provider == address(0)) revert ProviderNotSet();
@@ -117,7 +124,21 @@ contract BiddingHook is BaseACPHook {
     // --- Helpers --------------------------------------------------------------
 
     /// @dev Typed accessor for the core contract
-    function _core() internal view returns (AgenticCommerce) {
-        return AgenticCommerce(acpContract);
+    function _core() internal view returns (ERC8183) {
+        return ERC8183(erc8183Contract);
+    }
+
+    // --- IERC8183HookMetadata ------------------------------------------------
+
+    function requiredSelectors() external pure returns (bytes4[] memory) {
+        return new bytes4[](0);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool) {
+        return
+            interfaceId == type(IERC8183HookMetadata).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 }

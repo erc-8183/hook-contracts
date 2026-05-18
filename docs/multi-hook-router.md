@@ -164,9 +164,9 @@ The formula is `2 + (N x 2)` external calls per transition, where N is the numbe
 
 Sub-hooks must:
 - Be whitelisted on the core contract (`whitelistedHooks`)
-- Implement `IACPHook` (ERC165 checked)
+- Implement `IERC8183Hook` (ERC165 checked)
 - Implement `IERC8183HookMetadata` (ERC165 checked) — return `requiredSelectors()`
-- Hooks extending `BaseERC8183Hook` get `IACPHook` for free but must add `IERC8183HookMetadata` individually
+- Hooks extending `BaseERC8183Hook` get `IERC8183Hook` for free but must add `IERC8183HookMetadata` individually
 
 ## Comparison
 
@@ -218,13 +218,13 @@ The only difference is during job setup: instead of deploying a custom hook, the
 | **Gas cost** | Each additional hook adds ~3,000 gas per transition. 5 hooks = ~15,000 extra gas. Manageable on L2s, noticeable on L1. |
 | **Ordering matters** | Hook execution order affects behavior. Access control hooks should run before payment hooks. |
 | **Hook list is locked after funding** | Once money is escrowed, the hook list cannot change. This prevents manipulation mid-job. |
-| **Sub-hook compatibility** | Sub-hooks must implement `IERC8183HookMetadata` alongside `IACPHook`. Existing hooks extending `BaseERC8183Hook` need to add this interface. |
+| **Sub-hook compatibility** | Sub-hooks must implement `IERC8183HookMetadata` alongside `IERC8183Hook`. Existing hooks extending `BaseERC8183Hook` need to add this interface. |
 | **Caller must know the router** | When using per-hook data dispatch, callers encode optParams as `abi.encode(bytes[])`. Any optParams >= 64 bytes is decoded as a `bytes[]` — raw application data >= 64 bytes will revert if not in dispatch format. Use broadcast mode (empty optParams) or wrap in dispatch format. |
 | **De-whitelisted hooks** | If a sub-hook is de-whitelisted on core after configuration, the router skips it silently (emitting an event) rather than reverting the entire transition. |
 
 ## Impact
 
-- No changes to the core `AgenticCommerce` contract
+- No changes to the core `ERC8183` contract
 - The router is a standalone contract (~510 lines)
 - Existing `FundTransferHook` continues to work as-is for single-hook jobs
 - Multi-hook support is additive — it does not break or replace anything
