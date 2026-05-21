@@ -26,7 +26,7 @@ interface IWalletStateVerifier {
 /// USE CASE
 /// --------
 /// Pre-escrow gating: verify the funding wallet satisfies a named condition set
-/// (e.g. "USDC >= 1000 on Base", "KYC attested", "governance NFT held") before the
+/// (e.g. "stablecoin balance >= N on a target chain", "KYC attested", "governance NFT held") before the
 /// job budget can be escrowed. Complements score-based gating (reputation >= N,
 /// e.g. TrustGateHook) and content-based gating (deliverable verification,
 /// e.g. ReasoningVerifierHook) with a third shape: deterministic condition checks
