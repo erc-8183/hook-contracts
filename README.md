@@ -22,6 +22,7 @@ The hookable core protocol (`ERC8183`) and the base hook interface (`IERC8183Hoo
 |----------|---------|-------------|
 | [BiddingHook.sol](./contracts/hooks/BiddingHook.sol) | A — Simple Policy | Off-chain signed bidding for provider selection. Providers sign bid commitments; the hook verifies the winning signature on-chain via `setProvider`. Zero direct external calls — everything flows through core → hook callbacks. |
 | [FundTransferHook.sol](./contracts/hooks/FundTransferHook.sol) | B — Advanced Escrow | Two-phase fund transfer for token conversion/bridging jobs. Client capital flows to provider at `fund`; provider deposits output tokens at `submit`; buyer receives them at `complete`. |
+| [TrustGateHook.sol](./contracts/hooks/TrustGateHook.sol) | A — Simple Policy | Trust score gate using an on-chain oracle. Checks client trust on `fund`, provider trust on `submit`. |
 | [PrivacyHook.sol](./contracts/hooks/PrivacyHook.sol) | C — Experimental | Encrypted-envelope submissions. Providers encrypt deliverables off-chain with AES-256-GCM and submit an IPFS CID with ECDH-wrapped AES keys per recipient; the hook validates envelope structure on-chain and optionally verifies a ZK proof over the encrypted data. |
 
 ## Building a Hook
