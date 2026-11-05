@@ -154,3 +154,12 @@ A two‑phase hook can:
     - a pure policy hook (Profile A), or
     - an advanced escrow/settlement hook (Profile B) with clearly defined token flows.
 
+
+### Example: Single-stage underwriter-gated completion
+
+- Example implementation: `contracts/hooks/UnderwritingHook.sol`
+- Uses the normal ERC-8183 lifecycle for a single job and does not introduce parent/close linkage or custom settlement rails.
+- Locks an underwriting commit at `setBudget(...)`, including the underwriter, validity window, and expected evidence hashes.
+- Moves the job into a protected hook state after funding, then checks submit-time evidence against the committed `bundleHash`, `policyHash`, `quoteIdHash`, and `termsHash`.
+- Requires a registered underwriter to sign a `CompleteDecision` or `RejectDecision`; the signature travels in the `complete(...)`/`reject(...)` optParams and is verified by the hook before ERC-8183 finalizes the submitted job.
+- Treat this as experimental because it adds workflow-specific off-chain underwriting policy on top of ERC-8183, even though the on-chain shape is still a single-stage hook.
